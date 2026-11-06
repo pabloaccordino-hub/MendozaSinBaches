@@ -161,7 +161,15 @@ Los marcadores muestran los reportes cargados en este dispositivo. Se necesita c
 <button type="button" class="btn secondary" id="getLocation">📍 Obtener ubicación</button>
 <button type="button" class="btn secondary" id="clearLocation">Quitar ubicación</button>
 </div>
-<div id="gpsText" class="hint" style="margin-top:6px">Todavía no se agregó una ubicación GPS.</div>
+
+<div id="gpsText" class="hint" style="margin-top:6px">
+Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».
+</div>
+
+<label style="display:flex;align-items:center;gap:8px;font-weight:600">
+<input id="useGps" type="checkbox" style="width:auto">
+Usar mi GPS como ubicación del daño (solo si estoy en el lugar)
+</label>
 
 <button class="btn" type="submit">Enviar reporte</button>
 </form>
@@ -380,7 +388,7 @@ function card(r,manage=false){
  ${r.description?`<p>${escapeHtml(r.description)}</p>`:''}
  ${r.photo?`<img src="${r.photo}" alt="Foto del daño">`:''}
  <div style="margin-top:9px"><span class="pill status">${escapeHtml(r.status)}</span></div>
- ${r.lat!=null?`<div class="hint" style="margin-top:7px">GPS: ${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</div>`:''}
+ ${r.lat!=null?`<div class="hint" style="margin-top:7px">Coordenadas: ${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</div>`:''}
  ${manage?`<label>Actualizar estado</label>
  <select data-status="${r.id}">
  ${['Pendiente','Informado al municipio','En reparación','Solucionado'].map(s=>`<option ${s===r.status?'selected':''}>${s}</option>`).join('')}
@@ -451,7 +459,7 @@ $('getLocation').onclick=()=>{
 
  navigator.geolocation.getCurrentPosition(p=>{
   gps={lat:p.coords.latitude,lng:p.coords.longitude};
-  $('gpsText').textContent=`Ubicación lista: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}`;
+  $('gpsText').textContent=`GPS capturado: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}. Marcá la casilla si este es el lugar del daño.`;
  },e=>{
   $('gpsText').textContent='No se pudo obtener GPS. Revisá permisos y activá ubicación.';
  },{
@@ -463,16 +471,134 @@ $('getLocation').onclick=()=>{
 
 $('clearLocation').onclick=()=>{
  gps=null;
- $('gpsText').textContent='Todavía no se agregó una ubicación GPS.';
+ $('useGps').checked=false;
+ $('gpsText').textContent='Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».';
 };
+
+
+// Busca coordenadas reales para una dirección escrita.
+async function geocodeAddress(street, department){
+ const query=[street,department,'Mendoza','Argentina'].filter(Boolean).join(', ');
+ const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&q='+encodeURIComponent(query);
+
+ const response=await fetch(url,{
+  headers:{
+   'Accept':'application/json',
+   'Accept-Language':'es'
+  }
+ });
+
+ if(!response.ok){
+  throw new Error('El servicio de mapas no respondió. Probá nuevamente en unos segundos.');
+ }
+
+ const results=await response.json();
+
+ if(!results.length){
+  throw new Error('No encontramos esa dirección. Revisá la calle, altura y departamento.');
+ }
+
+ const lat=Number(results[0].lat);
+ const lng=Number(results[0].lon);
+
+ if(!Number.isFinite(lat)||!Number.isFinite(lng)){
+  throw new Error('La dirección no devolvió coordenadas válidas.');
+ }
+
+ return {
+  lat,
+  lng,
+  label:results[0].display_name||query
+ };
+}
+
+
+// Corrige el reporte de prueba ya cargado en Correa Saa 389, Guaymallén.
+async function repairCorreaSaaReport(){
+ const reports=load();
+
+ const target=reports.find(r=>
+  String(r.street||'').trim().toLocaleLowerCase('es-AR')==='correa saa 389' &&
+  String(r.department||'').trim().toLocaleLowerCase('es-AR')==='guaymallén' &&
+  r.locationSource!=='address'
+ );
+
+ if(!target)return;
+
+ try{
+  const point=await geocodeAddress(target.street,target.department);
+
+  target.lat=point.lat;
+  target.lng=point.lng;
+  target.locationSource='address';
+  target.geocodedAddress=point.label;
+
+  save(reports);
+  renderMap(true);
+
+ }catch(error){
+  console.warn('No se pudo corregir automáticamente Correa Saa 389:',error);
+ }
+}
+
 
 $('reportForm').onsubmit=async e=>{
  e.preventDefault();
+
+ let reportLocation;
+
+ // Si se marcó expresamente GPS, se usan esas coordenadas.
+ if($('useGps').checked){
+
+  if(!gps){
+   alert('Primero tocá «Obtener ubicación» para capturar el GPS del lugar del daño.');
+   return;
+  }
+
+  reportLocation={
+   lat:gps.lat,
+   lng:gps.lng,
+   source:'gps',
+   label:''
+  };
+
+ }else{
+
+  // Por defecto se buscan las coordenadas de la dirección escrita.
+  $('gpsText').textContent='Buscando las coordenadas de la dirección escrita…';
+
+  try{
+   const point=await geocodeAddress(
+    $('calle').value.trim(),
+    $('departamento').value
+   );
+
+   reportLocation={
+    lat:point.lat,
+    lng:point.lng,
+    source:'address',
+    label:point.label
+   };
+
+   $('gpsText').textContent='Dirección localizada correctamente en el mapa.';
+
+  }catch(error){
+   $('gpsText').textContent=error.message;
+
+   alert(
+    error.message+
+    '\n\nEl reporte no se guardó para evitar ubicarlo en un lugar incorrecto.'
+   );
+
+   return;
+  }
+ }
 
  const file=$('foto').files[0];
  let photo='';
 
  if(file){
+
   if(file.size>1200000){
    alert('La foto supera 1,2 MB. Elegí una imagen más pequeña para esta versión de prueba.');
    return;
@@ -494,8 +620,10 @@ $('reportForm').onsubmit=async e=>{
   severity:$('gravedad').value,
   description:$('descripcion').value.trim(),
   photo,
-  lat:gps?.lat??null,
-  lng:gps?.lng??null,
+  lat:reportLocation.lat,
+  lng:reportLocation.lng,
+  locationSource:reportLocation.source,
+  geocodedAddress:reportLocation.label,
   status:'Pendiente',
   created:new Date().toISOString()
  };
@@ -512,12 +640,15 @@ $('reportForm').onsubmit=async e=>{
 
  $('reportForm').reset();
  gps=null;
- $('gpsText').textContent='Todavía no se agregó una ubicación GPS.';
+
+ $('gpsText').textContent=
+  'Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».';
 
  updateStats();
  renderMap();
 
  alert('Reporte guardado en este dispositivo. En esta versión no se envía a autoridades ni se comparte con otros teléfonos.');
+
  switchTab('listado');
 };
 
@@ -540,6 +671,7 @@ $('locateMap').onclick=()=>{
   }).addTo(map).bindPopup('<b>TU UBICACIÓN</b>');
 
   map.setView(point,17);
+
  },()=>{
   alert('No se pudo obtener ubicación. Revisá los permisos.');
  });
@@ -609,6 +741,8 @@ $('demoBtn').onclick=()=>{
 fillDepartments();
 initMap();
 updateStats();
+repairCorreaSaaReport();
+
 </script>
 </body>
 </html>

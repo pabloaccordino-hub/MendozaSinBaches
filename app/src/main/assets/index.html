@@ -117,7 +117,7 @@ Los marcadores muestran los reportes cargados en este dispositivo. Se necesita c
 </select>
 
 <label for="calle">Calle y altura o intersección</label>
-<input id="calle" placeholder="Ej.: San Martín 1200 o San Martín y Garibaldi" required maxlength="160">
+<input id="calle" placeholder="Ej.: San Martín 1200 o San Martín y Garibaldi" maxlength="160">
 
 <label for="departamento">Departamento</label>
 <select id="departamento" required>
@@ -156,19 +156,19 @@ Los marcadores muestran los reportes cargados en este dispositivo. Se necesita c
 <input id="foto" type="file" accept="image/*" capture="environment">
 <div class="hint">La foto se guarda localmente en esta versión de prueba. Evitá fotografiar rostros o patentes innecesariamente.</div>
 
-<label>Ubicación GPS</label>
+<label>Ubicación del daño</label>
 <div class="row">
-<button type="button" class="btn secondary" id="getLocation">📍 Obtener ubicación</button>
-<button type="button" class="btn secondary" id="clearLocation">Quitar ubicación</button>
+<button type="button" class="btn secondary" id="getLocation">📍 Obtener ubicación GPS</button>
+<button type="button" class="btn secondary" id="clearLocation">Quitar GPS</button>
 </div>
 
 <div id="gpsText" class="hint" style="margin-top:6px">
-Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».
+Por defecto se utiliza la dirección escrita. Si estás en el lugar del daño, obtené la ubicación GPS.
 </div>
 
 <label style="display:flex;align-items:center;gap:8px;font-weight:600">
 <input id="useGps" type="checkbox" style="width:auto">
-Usar mi GPS como ubicación del daño (solo si estoy en el lugar)
+Usar mi GPS como ubicación del daño (estoy en el lugar)
 </label>
 
 <button class="btn" type="submit">Enviar reporte</button>
@@ -455,26 +455,48 @@ $('getLocation').onclick=()=>{
   return;
  }
 
- $('gpsText').textContent='Buscando ubicación…';
+ $('gpsText').textContent='Obteniendo ubicación del celular…';
 
  navigator.geolocation.getCurrentPosition(p=>{
   gps={lat:p.coords.latitude,lng:p.coords.longitude};
-  $('gpsText').textContent=`GPS capturado: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}. Marcá la casilla si este es el lugar del daño.`;
+
+  $('useGps').checked=true;
+  actualizarRequisitoDireccion();
+
+  $('gpsText').textContent=
+   `GPS listo: ${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)}. Se usará este punto para el reporte.`;
+
  },e=>{
   $('gpsText').textContent='No se pudo obtener GPS. Revisá permisos y activá ubicación.';
  },{
   enableHighAccuracy:true,
-  timeout:15000,
-  maximumAge:60000
+  timeout:20000,
+  maximumAge:0
  });
 };
 
 $('clearLocation').onclick=()=>{
  gps=null;
  $('useGps').checked=false;
- $('gpsText').textContent='Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».';
+ actualizarRequisitoDireccion();
+ $('gpsText').textContent='Se utilizará la dirección escrita para localizar el reporte.';
 };
 
+function actualizarRequisitoDireccion(){
+ const usarGPS=$('useGps').checked;
+ $('calle').required=!usarGPS;
+ $('calle').placeholder=usarGPS?'Ubicación obtenida automáticamente por GPS':'Ej.: San Martín 1200 o San Martín y Garibaldi';
+}
+
+$('useGps').addEventListener('change',()=>{
+ actualizarRequisitoDireccion();
+
+ if($('useGps').checked&&!gps){
+  $('gpsText').textContent='Tocá «Obtener ubicación» para capturar el punto exacto del daño.';
+ }
+});
+
+actualizarRequisitoDireccion();
 
 // Busca coordenadas reales para una dirección escrita.
 async function geocodeAddress(street, department){
@@ -512,6 +534,41 @@ async function geocodeAddress(street, department){
  };
 }
 
+// Obtiene el nombre de la calle desde las coordenadas GPS.
+// Si falla, el reporte igual se guarda con las coordenadas.
+async function reverseGeocode(lat,lng){
+ try{
+  const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+
+   encodeURIComponent(lat)+
+   '&lon='+encodeURIComponent(lng)+
+   '&zoom=18&addressdetails=1';
+
+  const response=await fetch(url,{
+   headers:{
+    'Accept':'application/json',
+    'Accept-Language':'es'
+   }
+  });
+
+  if(!response.ok)return '';
+
+  const data=await response.json();
+  const a=data.address||{};
+
+  const calle=a.road||a.pedestrian||a.residential||a.footway||'';
+  const altura=a.house_number||'';
+
+  if(calle){
+   return altura?calle+' '+altura:calle;
+  }
+
+  return '';
+
+ }catch(error){
+  console.warn('No se pudo identificar la calle desde el GPS:',error);
+  return '';
+ }
+}
 
 // Corrige el reporte de prueba ya cargado en Correa Saa 389, Guaymallén.
 async function repairCorreaSaaReport(){
@@ -541,17 +598,17 @@ async function repairCorreaSaaReport(){
  }
 }
 
-
 $('reportForm').onsubmit=async e=>{
  e.preventDefault();
 
  let reportLocation;
+ let reportStreet=$('calle').value.trim();
 
- // Si se marcó expresamente GPS, se usan esas coordenadas.
+ // MODO GPS: no exige calle ni numeración.
  if($('useGps').checked){
 
   if(!gps){
-   alert('Primero tocá «Obtener ubicación» para capturar el GPS del lugar del daño.');
+   alert('Primero tocá «Obtener ubicación GPS» para capturar el GPS del celular.');
    return;
   }
 
@@ -562,14 +619,30 @@ $('reportForm').onsubmit=async e=>{
    label:''
   };
 
+  $('gpsText').textContent='Ubicación GPS capturada. Identificando la calle…';
+
+  const calleGPS=await reverseGeocode(gps.lat,gps.lng);
+
+  if(calleGPS){
+   reportStreet=calleGPS;
+  }else if(!reportStreet){
+   reportStreet='Ubicación GPS';
+  }
+
  }else{
 
-  // Por defecto se buscan las coordenadas de la dirección escrita.
+  // MODO DIRECCIÓN: exige calle y altura.
+  if(!reportStreet){
+   alert('Ingresá calle y altura, o activá «Usar mi GPS como ubicación del daño».');
+   $('calle').focus();
+   return;
+  }
+
   $('gpsText').textContent='Buscando las coordenadas de la dirección escrita…';
 
   try{
    const point=await geocodeAddress(
-    $('calle').value.trim(),
+    reportStreet,
     $('departamento').value
    );
 
@@ -580,16 +653,9 @@ $('reportForm').onsubmit=async e=>{
     label:point.label
    };
 
-   $('gpsText').textContent='Dirección localizada correctamente en el mapa.';
-
   }catch(error){
    $('gpsText').textContent=error.message;
-
-   alert(
-    error.message+
-    '\n\nEl reporte no se guardó para evitar ubicarlo en un lugar incorrecto.'
-   );
-
+   alert(error.message+'\n\nEl reporte no se guardó.');
    return;
   }
  }
@@ -598,7 +664,6 @@ $('reportForm').onsubmit=async e=>{
  let photo='';
 
  if(file){
-
   if(file.size>1200000){
    alert('La foto supera 1,2 MB. Elegí una imagen más pequeña para esta versión de prueba.');
    return;
@@ -615,7 +680,7 @@ $('reportForm').onsubmit=async e=>{
  const r={
   id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),
   type:$('tipo').value,
-  street:$('calle').value.trim(),
+  street:reportStreet||'Ubicación GPS',
   department:$('departamento').value,
   severity:$('gravedad').value,
   description:$('descripcion').value.trim(),
@@ -640,14 +705,15 @@ $('reportForm').onsubmit=async e=>{
 
  $('reportForm').reset();
  gps=null;
+ actualizarRequisitoDireccion();
 
  $('gpsText').textContent=
-  'Por defecto se buscará la dirección escrita. Si el daño está exactamente donde estás, activá «Usar GPS».';
+  'Se utilizará la dirección escrita o el GPS, según la opción elegida.';
 
  updateStats();
  renderMap();
 
- alert('Reporte guardado en este dispositivo. En esta versión no se envía a autoridades ni se comparte con otros teléfonos.');
+ alert('Reporte guardado correctamente con su ubicación.');
 
  switchTab('listado');
 };

@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="es">
 <head>
@@ -70,20 +71,17 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
 <div class="panel">
 <h2>Mapa de reportes</h2>
 <div class="hint" style="margin-bottom:10px">
-Los marcadores muestran los reportes cargados en este dispositivo. Se necesita conexión a internet.
+Los marcadores muestran los reportes compartidos en la nube y los respaldos locales. Se necesita conexión a internet.
 </div>
-
 <div class="map-legend">
 <span><i class="legend-dot" style="background:#2563eb"></i>Tu ubicación</span>
 <span><i class="legend-dot" style="background:#dc2626"></i>Gravedad alta</span>
 <span><i class="legend-dot" style="background:#d99a00"></i>Gravedad media</span>
 <span><i class="legend-dot" style="background:#16a34a"></i>Gravedad baja</span>
 </div>
-
 <div id="map">
 <button type="button" class="map-expand" id="expandMap">⛶ Ampliar mapa</button>
 </div>
-
 <div class="row">
 <button class="btn secondary" id="refreshMap">Actualizar y enfocar reportes</button>
 <button class="btn secondary" id="locateMap">📍 Mi ubicación</button>
@@ -154,7 +152,7 @@ Los marcadores muestran los reportes cargados en este dispositivo. Se necesita c
 
 <label for="foto">Fotografía (opcional)</label>
 <input id="foto" type="file" accept="image/*" capture="environment">
-<div class="hint">La foto se guarda localmente en esta versión de prueba. Evitá fotografiar rostros o patentes innecesariamente.</div>
+<div class="hint">La fotografía se subirá al almacenamiento online. Evitá fotografiar rostros o patentes innecesariamente.</div>
 
 <label>Ubicación del daño</label>
 <div class="row">
@@ -216,12 +214,17 @@ Usar mi GPS como ubicación del daño (estoy en el lugar)
 
 </main>
 
-<footer>Prototipo 0.1 · Mendoza, Argentina · Los reportes no se envían todavía a ningún municipio.</footer>
+<footer>Prototipo 0.2 · Mendoza, Argentina · Reportes compartidos mediante Supabase.</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const KEY='msb_reports_v1';
-let gps=null, map=null, markers=[], userMarker=null, admin=false, mapExpanded=false;
+const SUPABASE_URL='https://uqluaeyncxyuawsvosnn.supabase.co';
+const SUPABASE_KEY='sb_publishable__gBqxSO2cHoPHmsBU8Qtow_iXaMpgau';
+
+let cloudReports=[];
+let cloudReady=false;
+let gps=null,map=null,markers=[],userMarker=null,admin=false,mapExpanded=false;
 
 const $=id=>document.getElementById(id);
 
@@ -234,18 +237,130 @@ function save(data){
  localStorage.setItem(KEY,JSON.stringify(data));
 }
 
+function getReports(){
+ const combined=new Map();
+ cloudReports.forEach(r=>combined.set(String(r.id),r));
+ load().forEach(r=>{
+  if(!combined.has(String(r.id)))combined.set(String(r.id),r);
+ });
+ return [...combined.values()];
+}
+
+function mapCloudReport(r){
+ return {
+  id:String(r.id),
+  type:r.tipo,
+  street:r.calle,
+  department:r.departamento,
+  severity:r.gravedad,
+  description:r.descripcion||'',
+  photo:r.foto_url||'',
+  lat:Number(r.lat),
+  lng:Number(r.lng),
+  status:r.estado,
+  created:r.fecha_creacion,
+  locationSource:'cloud'
+ };
+}
+
+async function refreshCloudReports(){
+ try{
+  const response=await fetch(
+   SUPABASE_URL+'/rest/v1/reportes?select=*&order=fecha_creacion.desc',
+   {headers:{apikey:SUPABASE_KEY,Accept:'application/json'}}
+  );
+
+  if(!response.ok){
+   throw new Error('Supabase '+response.status+': '+await response.text());
+  }
+
+  cloudReports=(await response.json()).map(mapCloudReport);
+  cloudReady=true;
+
+  updateStats();
+  renderMap(false);
+
+  if(!$('tab-listado').classList.contains('hidden')){
+   renderList();
+  }
+
+  return true;
+
+ }catch(error){
+  console.error('Error leyendo Supabase:',error);
+  cloudReady=false;
+  return false;
+ }
+}
+
+async function uploadCloudPhoto(file,id){
+ const ext=(file.name.split('.').pop()||'jpg')
+  .toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+
+ const objectPath=id+'.'+ext;
+
+ const response=await fetch(
+  SUPABASE_URL+'/storage/v1/object/fotos-reportes/'+objectPath,
+  {
+   method:'POST',
+   headers:{
+    apikey:SUPABASE_KEY,
+    'Content-Type':file.type||'image/jpeg',
+    'x-upsert':'false'
+   },
+   body:file
+  }
+ );
+
+ if(!response.ok){
+  throw new Error('Error subiendo foto: '+await response.text());
+ }
+
+ return SUPABASE_URL+'/storage/v1/object/public/fotos-reportes/'+objectPath;
+}
+
+async function insertCloudReport(r){
+ const response=await fetch(SUPABASE_URL+'/rest/v1/reportes',{
+  method:'POST',
+  headers:{
+   apikey:SUPABASE_KEY,
+   'Content-Type':'application/json',
+   Prefer:'return=minimal'
+  },
+  body:JSON.stringify({
+   id:r.id,
+   tipo:r.type,
+   calle:r.street,
+   departamento:r.department,
+   gravedad:r.severity,
+   descripcion:r.description,
+   foto_url:r.photo||null,
+   lat:r.lat,
+   lng:r.lng,
+   estado:'Pendiente'
+  })
+ });
+
+ if(!response.ok){
+  throw new Error('Error guardando reporte: '+await response.text());
+ }
+}
+
 function escapeHtml(s){
  return String(s??'').replace(/[&<>"']/g,c=>({
- '&':'&amp;',
- '<':'&lt;',
- '>':'&gt;',
- '"':'&quot;',
- "'":'&#39;'
+  '&':'&amp;',
+  '<':'&lt;',
+  '>':'&gt;',
+  '"':'&quot;',
+  "'":'&#39;'
  }[c]));
 }
 
 function fmt(d){
- return new Date(d).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'});
+ return new Date(d).toLocaleString('es-AR',{
+  dateStyle:'short',
+  timeStyle:'short'
+ });
 }
 
 function pillSeverity(s){
@@ -255,15 +370,24 @@ function pillSeverity(s){
 function switchTab(tab){
  document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
  $('tab-'+tab).classList.remove('hidden');
- document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+
+ document.querySelectorAll('nav button').forEach(b=>
+  b.classList.toggle('active',b.dataset.tab===tab)
+ );
 
  if(tab==='mapa'){
-  setTimeout(()=>{
+  setTimeout(async()=>{
    if(map)map.invalidateSize();
+   await refreshCloudReports();
    renderMap(true);
   },150);
  }
- if(tab==='listado')renderList();
+
+ if(tab==='listado'){
+  renderList();
+  refreshCloudReports();
+ }
+
  if(tab==='admin'&&admin)renderAdmin();
 }
 
@@ -273,7 +397,10 @@ document.querySelectorAll('nav button').forEach(b=>
 
 function initMap(){
  if(!window.L){
-  $('map').insertAdjacentHTML('beforeend','<div class="empty">No se pudo cargar el mapa. Verificá la conexión a internet.</div>');
+  $('map').insertAdjacentHTML(
+   'beforeend',
+   '<div class="empty">No se pudo cargar el mapa. Verificá la conexión a internet.</div>'
+  );
   return;
  }
 
@@ -334,7 +461,7 @@ function renderMap(fit=true){
  markers.forEach(m=>map.removeLayer(m));
  markers=[];
 
- const reports=load().filter(r=>
+ const reports=getReports().filter(r=>
   r.lat!==null&&r.lng!==null&&
   Number.isFinite(Number(r.lat))&&
   Number.isFinite(Number(r.lng))
@@ -369,7 +496,8 @@ function renderMap(fit=true){
 }
 
 function updateStats(){
- const a=load();
+ const a=getReports();
+
  $('countAll').textContent=a.length;
  $('countOpen').textContent=a.filter(r=>r.status==='Pendiente').length;
  $('countRepair').textContent=a.filter(r=>r.status==='En reparación').length;
@@ -398,7 +526,7 @@ function card(r,manage=false){
 }
 
 function renderList(){
- const a=load().filter(r=>
+ const a=getReports().filter(r=>
   (!$('filterDept').value||r.department===$('filterDept').value)&&
   (!$('filterStatus').value||r.status===$('filterStatus').value)
  ).sort((x,y)=>y.created.localeCompare(x.created));
@@ -417,6 +545,7 @@ function renderAdmin(){
  document.querySelectorAll('[data-status]').forEach(s=>
   s.addEventListener('change',()=>{
    const a=load(),r=a.find(x=>x.id===s.dataset.status);
+
    if(r){
     r.status=s.value;
     save(a);
@@ -441,6 +570,7 @@ function renderAdmin(){
 
 function fillDepartments(){
  const deps=[...$('departamento').options].map(o=>o.value).filter(Boolean);
+
  deps.forEach(d=>{
   const op=document.createElement('option');
   op.value=d;
@@ -485,7 +615,9 @@ $('clearLocation').onclick=()=>{
 function actualizarRequisitoDireccion(){
  const usarGPS=$('useGps').checked;
  $('calle').required=!usarGPS;
- $('calle').placeholder=usarGPS?'Ubicación obtenida automáticamente por GPS':'Ej.: San Martín 1200 o San Martín y Garibaldi';
+ $('calle').placeholder=usarGPS?
+  'Ubicación obtenida automáticamente por GPS':
+  'Ej.: San Martín 1200 o San Martín y Garibaldi';
 }
 
 $('useGps').addEventListener('change',()=>{
@@ -498,16 +630,12 @@ $('useGps').addEventListener('change',()=>{
 
 actualizarRequisitoDireccion();
 
-// Busca coordenadas reales para una dirección escrita.
-async function geocodeAddress(street, department){
+async function geocodeAddress(street,department){
  const query=[street,department,'Mendoza','Argentina'].filter(Boolean).join(', ');
  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&q='+encodeURIComponent(query);
 
  const response=await fetch(url,{
-  headers:{
-   'Accept':'application/json',
-   'Accept-Language':'es'
-  }
+  headers:{'Accept':'application/json','Accept-Language':'es'}
  });
 
  if(!response.ok){
@@ -527,41 +655,27 @@ async function geocodeAddress(street, department){
   throw new Error('La dirección no devolvió coordenadas válidas.');
  }
 
- return {
-  lat,
-  lng,
-  label:results[0].display_name||query
- };
+ return {lat,lng,label:results[0].display_name||query};
 }
 
-// Obtiene el nombre de la calle desde las coordenadas GPS.
-// Si falla, el reporte igual se guarda con las coordenadas.
 async function reverseGeocode(lat,lng){
  try{
   const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+
-   encodeURIComponent(lat)+
-   '&lon='+encodeURIComponent(lng)+
+   encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng)+
    '&zoom=18&addressdetails=1';
 
   const response=await fetch(url,{
-   headers:{
-    'Accept':'application/json',
-    'Accept-Language':'es'
-   }
+   headers:{'Accept':'application/json','Accept-Language':'es'}
   });
 
   if(!response.ok)return '';
 
   const data=await response.json();
   const a=data.address||{};
-
   const calle=a.road||a.pedestrian||a.residential||a.footway||'';
   const altura=a.house_number||'';
 
-  if(calle){
-   return altura?calle+' '+altura:calle;
-  }
-
+  if(calle)return altura?calle+' '+altura:calle;
   return '';
 
  }catch(error){
@@ -570,13 +684,12 @@ async function reverseGeocode(lat,lng){
  }
 }
 
-// Corrige el reporte de prueba ya cargado en Correa Saa 389, Guaymallén.
 async function repairCorreaSaaReport(){
  const reports=load();
 
  const target=reports.find(r=>
-  String(r.street||'').trim().toLocaleLowerCase('es-AR')==='correa saa 389' &&
-  String(r.department||'').trim().toLocaleLowerCase('es-AR')==='guaymallén' &&
+  String(r.street||'').trim().toLocaleLowerCase('es-AR')==='correa saa 389'&&
+  String(r.department||'').trim().toLocaleLowerCase('es-AR')==='guaymallén'&&
   r.locationSource!=='address'
  );
 
@@ -584,15 +697,12 @@ async function repairCorreaSaaReport(){
 
  try{
   const point=await geocodeAddress(target.street,target.department);
-
   target.lat=point.lat;
   target.lng=point.lng;
   target.locationSource='address';
   target.geocodedAddress=point.label;
-
   save(reports);
   renderMap(true);
-
  }catch(error){
   console.warn('No se pudo corregir automáticamente Correa Saa 389:',error);
  }
@@ -604,77 +714,43 @@ $('reportForm').onsubmit=async e=>{
  let reportLocation;
  let reportStreet=$('calle').value.trim();
 
- // MODO GPS: no exige calle ni numeración.
  if($('useGps').checked){
-
   if(!gps){
-   alert('Primero tocá «Obtener ubicación GPS» para capturar el GPS del celular.');
+   alert('Primero tocá «Obtener ubicación GPS».');
    return;
   }
 
-  reportLocation={
-   lat:gps.lat,
-   lng:gps.lng,
-   source:'gps',
-   label:''
-  };
-
+  reportLocation={lat:gps.lat,lng:gps.lng,source:'gps',label:''};
   $('gpsText').textContent='Ubicación GPS capturada. Identificando la calle…';
 
-  const calleGPS=await reverseGeocode(gps.lat,gps.lng);
-
-  if(calleGPS){
-   reportStreet=calleGPS;
-  }else if(!reportStreet){
-   reportStreet='Ubicación GPS';
-  }
+  const street=await reverseGeocode(gps.lat,gps.lng);
+  if(street)reportStreet=street;
+  else if(!reportStreet)reportStreet='Ubicación GPS';
 
  }else{
-
-  // MODO DIRECCIÓN: exige calle y altura.
   if(!reportStreet){
-   alert('Ingresá calle y altura, o activá «Usar mi GPS como ubicación del daño».');
+   alert('Ingresá calle y altura, o activá la opción GPS.');
    $('calle').focus();
    return;
   }
 
-  $('gpsText').textContent='Buscando las coordenadas de la dirección escrita…';
+  $('gpsText').textContent='Buscando las coordenadas de la dirección…';
 
   try{
-   const point=await geocodeAddress(
-    reportStreet,
-    $('departamento').value
-   );
-
-   reportLocation={
-    lat:point.lat,
-    lng:point.lng,
-    source:'address',
-    label:point.label
-   };
-
-  }catch(error){
-   $('gpsText').textContent=error.message;
-   alert(error.message+'\n\nEl reporte no se guardó.');
+   const p=await geocodeAddress(reportStreet,$('departamento').value);
+   reportLocation={lat:p.lat,lng:p.lng,source:'address',label:p.label};
+  }catch(err){
+   $('gpsText').textContent=err.message;
+   alert(err.message+'\nEl reporte no se guardó.');
    return;
   }
  }
 
  const file=$('foto').files[0];
- let photo='';
 
- if(file){
-  if(file.size>1200000){
-   alert('La foto supera 1,2 MB. Elegí una imagen más pequeña para esta versión de prueba.');
-   return;
-  }
-
-  photo=await new Promise((resolve,reject)=>{
-   const reader=new FileReader();
-   reader.onload=()=>resolve(reader.result);
-   reader.onerror=reject;
-   reader.readAsDataURL(file);
-  });
+ if(file&&file.size>1200000){
+  alert('La foto supera 1,2 MB. Elegí una imagen más pequeña.');
+  return;
  }
 
  const r={
@@ -684,7 +760,7 @@ $('reportForm').onsubmit=async e=>{
   department:$('departamento').value,
   severity:$('gravedad').value,
   description:$('descripcion').value.trim(),
-  photo,
+  photo:'',
   lat:reportLocation.lat,
   lng:reportLocation.lng,
   locationSource:reportLocation.source,
@@ -693,34 +769,51 @@ $('reportForm').onsubmit=async e=>{
   created:new Date().toISOString()
  };
 
- const a=load();
- a.push(r);
-
  try{
-  save(a);
+  if(file)r.photo=await uploadCloudPhoto(file,r.id);
+
+  await insertCloudReport(r);
+
+  const local=load();
+  local.push(r);
+  save(local);
+
+  await refreshCloudReports();
+
+  alert('Reporte enviado correctamente y guardado en la nube. Ya puede verse desde otros teléfonos.');
+
  }catch(err){
-  alert('No hay espacio suficiente para guardar la foto. Probá sin foto.');
-  return;
+  console.error(err);
+
+  try{
+   const local=load();
+   local.push(r);
+   save(local);
+  }catch(storageErr){
+   alert('No se pudo guardar el reporte. Probá nuevamente sin foto.');
+   return;
+  }
+
+  alert('No se pudo enviar a la nube. El reporte quedó guardado solamente en este teléfono.\nDetalle: '+err.message);
  }
 
  $('reportForm').reset();
  gps=null;
  actualizarRequisitoDireccion();
 
- $('gpsText').textContent=
-  'Se utilizará la dirección escrita o el GPS, según la opción elegida.';
+ $('gpsText').textContent='Se utilizará la dirección escrita o el GPS, según la opción elegida.';
 
  updateStats();
  renderMap();
-
- alert('Reporte guardado correctamente con su ubicación.');
-
  switchTab('listado');
 };
 
 $('filterDept').onchange=renderList;
 $('filterStatus').onchange=renderList;
-$('refreshMap').onclick=()=>renderMap(true);
+$('refreshMap').onclick=async()=>{
+ await refreshCloudReports();
+ renderMap(true);
+};
 
 $('locateMap').onclick=()=>{
  navigator.geolocation?.getCurrentPosition(p=>{
@@ -764,7 +857,7 @@ $('logoutBtn').onclick=()=>{
 $('exportBtn').onclick=()=>{
  const rows=[
   ['id','fecha','tipo','calle','departamento','gravedad','estado','latitud','longitud','descripcion'],
-  ...load().map(r=>[
+  ...getReports().map(r=>[
    r.id,r.created,r.type,r.street,r.department,r.severity,r.status,
    r.lat??'',r.lng??'',r.description
   ])
@@ -808,6 +901,7 @@ fillDepartments();
 initMap();
 updateStats();
 repairCorreaSaaReport();
+refreshCloudReports();
 
 </script>
 </body>

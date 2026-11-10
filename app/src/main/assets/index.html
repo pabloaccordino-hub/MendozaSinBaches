@@ -1,341 +1,4 @@
-
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
-<title>Mendoza Sin Baches</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<style>
-:root{--green:#176b45;--bg:#f3f6f4;--ink:#17231d;--muted:#66756c;--red:#d83b3b;--yellow:#d99a00;--blue:#2563eb}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Arial,sans-serif}
-header{background:var(--green);color:white;padding:18px 16px 14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px #0002}
-.brand{font-size:21px;font-weight:800;letter-spacing:-.4px}
-.sub{font-size:12px;opacity:.88;margin-top:3px}
-nav{display:flex;gap:8px;padding:10px;background:white;position:sticky;top:68px;z-index:900;box-shadow:0 2px 5px #0001}
-nav button{flex:1;border:0;border-radius:10px;padding:11px 4px;background:#edf2ee;color:#244332;font-weight:700;font-size:12px}
-nav button.active{background:var(--green);color:white}
-main{padding:14px;max-width:760px;margin:auto}
-.panel{background:white;border-radius:16px;padding:15px;margin-bottom:13px;box-shadow:0 2px 10px #17231d0a}
-h2{font-size:18px;margin:0 0 12px}
-label{font-size:13px;font-weight:700;display:block;margin:12px 0 6px}
-input,select,textarea{width:100%;padding:12px;border:1px solid #d6dfd9;border-radius:10px;background:#fff;font:inherit;color:var(--ink)}
-textarea{min-height:75px;resize:vertical}
-.btn{border:0;border-radius:11px;background:var(--green);color:white;font-weight:750;padding:13px 15px;width:100%;font-size:15px;margin-top:12px}
-.btn.secondary{background:#e9f0eb;color:#204631}
-.btn.danger{background:#b42323}
-#map{height:420px;min-height:320px;border-radius:14px;overflow:hidden;background:#e5ebe7;position:relative;touch-action:pan-x pan-y}
-#map.expanded{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:100dvh!important;z-index:3000;border-radius:0}
-.map-expand{position:absolute;z-index:1000;top:10px;right:10px;background:#fff;color:#17231d;border:1px solid #b8c4bc;border-radius:9px;padding:10px 12px;font-weight:800;box-shadow:0 2px 8px #0003}
-.map-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#526158;margin:8px 0}
-.legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
-body.map-open{overflow:hidden}
-.hint{font-size:12px;color:var(--muted);line-height:1.5}
-.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.stat{background:#f1f5f2;border-radius:12px;padding:12px 8px;text-align:center}
-.num{font-size:24px;font-weight:800}
-.small{font-size:11px;color:var(--muted)}
-.report{border:1px solid #e3e9e5;border-radius:13px;padding:12px;margin-top:10px}
-.reporttop{display:flex;justify-content:space-between;gap:8px;align-items:start}
-.pill{font-size:11px;padding:5px 8px;border-radius:20px;font-weight:800;white-space:nowrap}
-.grave{background:#fee2e2;color:#991b1b}
-.media{background:#fef3c7;color:#92400e}
-.leve{background:#dcfce7;color:#166534}
-.status{background:#e8eefc;color:#1e40af}
-.report img{width:100%;max-height:190px;object-fit:cover;border-radius:9px;margin-top:10px}
-.hidden{display:none!important}
-.row{display:flex;gap:8px}
-.row>*{flex:1;min-width:0}
-.empty{text-align:center;padding:22px;color:var(--muted)}
-footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24px}
-</style>
-</head>
-<body>
-
-<header>
-<div class="brand">🛣️ Mendoza Sin Baches</div>
-<div class="sub">Reportá daños viales. Hagamos visibles los problemas.</div>
-</header>
-
-<nav>
-<button class="active" data-tab="mapa">🗺️ Mapa</button>
-<button data-tab="reportar">＋ Reportar</button>
-<button data-tab="listado">📋 Reportes</button>
-<button data-tab="admin">🔐 Admin</button>
-</nav>
-
-<main>
-
-<section id="tab-mapa">
-<div class="panel">
-<h2>Mapa de reportes</h2>
-<div class="hint" style="margin-bottom:10px">
-Los marcadores muestran los reportes compartidos en la nube y los respaldos locales. Se necesita conexión a internet.
-</div>
-<div class="map-legend">
-<span><i class="legend-dot" style="background:#2563eb"></i>Tu ubicación</span>
-<span><i class="legend-dot" style="background:#dc2626"></i>Gravedad alta</span>
-<span><i class="legend-dot" style="background:#d99a00"></i>Gravedad media</span>
-<span><i class="legend-dot" style="background:#16a34a"></i>Gravedad baja</span>
-</div>
-<div id="map">
-<button type="button" class="map-expand" id="expandMap">⛶ Ampliar mapa</button>
-</div>
-<div class="row">
-<button class="btn secondary" id="refreshMap">Actualizar y enfocar reportes</button>
-<button class="btn secondary" id="locateMap">📍 Mi ubicación</button>
-</div>
-</div>
-
-<div class="panel">
-<h2>Estado de los reportes</h2>
-<div class="stats">
-<div class="stat"><div class="num" id="countAll">0</div><div class="small">Total</div></div>
-<div class="stat"><div class="num" id="countOpen">0</div><div class="small">Pendientes</div></div>
-<div class="stat"><div class="num" id="countRepair">0</div><div class="small">En reparación</div></div>
-<div class="stat"><div class="num" id="countFixed">0</div><div class="small">Solucionados</div></div>
-</div>
-</div>
-</section>
-
-<section id="tab-reportar" class="hidden">
-<div class="panel">
-<h2>Reportar calle dañada</h2>
-<div class="hint">No necesitás crear una cuenta. Completá los datos y, si podés, adjuntá una foto tomada en el lugar.</div>
-
-<form id="reportForm">
-<label for="tipo">Tipo de daño</label>
-<select id="tipo" required>
-<option value="Pozo / bache">Pozo / bache</option>
-<option value="Calle rota">Calle rota</option>
-<option value="Hundimiento">Hundimiento</option>
-<option value="Calzada peligrosa">Calzada peligrosa</option>
-<option value="Otro">Otro</option>
-</select>
-
-<label for="calle">Calle y altura o intersección</label>
-<input id="calle" placeholder="Ej.: San Martín 1200 o San Martín y Garibaldi" maxlength="160">
-
-<label for="departamento">Departamento</label>
-<select id="departamento" required>
-<option value="">Elegir departamento…</option>
-<option>Capital</option>
-<option>Godoy Cruz</option>
-<option>Guaymallén</option>
-<option>Las Heras</option>
-<option>Maipú</option>
-<option>Luján de Cuyo</option>
-<option>Lavalle</option>
-<option>Junín</option>
-<option>La Paz</option>
-<option>Rivadavia</option>
-<option>San Carlos</option>
-<option>San Martín</option>
-<option>Santa Rosa</option>
-<option>Tunuyán</option>
-<option>Tupungato</option>
-<option>General Alvear</option>
-<option>Malargüe</option>
-<option>San Rafael</option>
-</select>
-
-<label for="gravedad">Gravedad estimada</label>
-<select id="gravedad">
-<option value="Alta">Alta — peligro o daño importante</option>
-<option value="Media" selected>Media — requiere reparación</option>
-<option value="Baja">Baja — daño menor</option>
-</select>
-
-<label for="descripcion">Descripción (opcional)</label>
-<textarea id="descripcion" placeholder="Tamaño aproximado, carril afectado, riesgo para motos o bicicletas…" maxlength="500"></textarea>
-
-<label for="foto">Fotografía (opcional)</label>
-<input id="foto" type="file" accept="image/*" capture="environment">
-<div class="hint">La fotografía se subirá al almacenamiento online. Evitá fotografiar rostros o patentes innecesariamente.</div>
-
-<label>Ubicación del daño</label>
-<div class="row">
-<button type="button" class="btn secondary" id="getLocation">📍 Obtener ubicación GPS</button>
-<button type="button" class="btn secondary" id="clearLocation">Quitar GPS</button>
-</div>
-
-<div id="gpsText" class="hint" style="margin-top:6px">
-Por defecto se utiliza la dirección escrita. Si estás en el lugar del daño, obtené la ubicación GPS.
-</div>
-
-<label style="display:flex;align-items:center;gap:8px;font-weight:600">
-<input id="useGps" type="checkbox" style="width:auto">
-Usar mi GPS como ubicación del daño (estoy en el lugar)
-</label>
-
-<button class="btn" type="submit">Enviar reporte</button>
-</form>
-</div>
-</section>
-
-<section id="tab-listado" class="hidden">
-<div class="panel">
-<h2>Reportes ciudadanos</h2>
-<div class="row">
-<select id="filterDept"><option value="">Todos los departamentos</option></select>
-<select id="filterStatus">
-<option value="">Todos los estados</option>
-<option>Pendiente</option>
-<option>Informado al municipio</option>
-<option>En reparación</option>
-<option>Solucionado</option>
-</select>
-</div>
-<div id="reportList"></div>
-</div>
-</section>
-
-<section id="tab-admin" class="hidden">
-<div class="panel">
-<h2>Panel administrativo</h2>
-<div class="hint">Prototipo local: el acceso con PIN es solo una demostración, no un sistema seguro. No usar datos sensibles ni distribuir como versión oficial.</div>
-<div id="adminLogin">
-<label for="adminPin">PIN de demostración</label>
-<input id="adminPin" type="password" inputmode="numeric" placeholder="Ingresar PIN">
-<button class="btn" id="loginBtn">Ingresar</button>
-<div class="hint">PIN de prueba: 2468. Debe reemplazarse por autenticación real antes de publicar.</div>
-</div>
-<div id="adminPanel" class="hidden">
-<div class="row">
-<button class="btn secondary" id="exportBtn">Exportar CSV</button>
-<button class="btn danger" id="logoutBtn">Cerrar sesión</button>
-</div>
-<div id="adminList"></div>
-<button class="btn secondary" id="demoBtn">Agregar reporte de ejemplo</button>
-</div>
-</div>
-</section>
-
-</main>
-
-<footer>Prototipo 0.2 · Mendoza, Argentina · Reportes compartidos mediante Supabase.</footer>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-const KEY='msb_reports_v1';
-const SUPABASE_URL='https://uqluaeyncxyuawsvosnn.supabase.co';
-const SUPABASE_KEY='sb_publishable__gBqxSO2cHoPHmsBU8Qtow_iXaMpgau';
-
-let cloudReports=[];
-let cloudReady=false;
-let gps=null,map=null,markers=[],userMarker=null,admin=false,mapExpanded=false;
-
-const $=id=>document.getElementById(id);
-
-function load(){
- try{return JSON.parse(localStorage.getItem(KEY)||'[]')}
- catch(e){return []}
-}
-
-function save(data){
- localStorage.setItem(KEY,JSON.stringify(data));
-}
-
-function getReports(){
- const combined=new Map();
- cloudReports.forEach(r=>combined.set(String(r.id),r));
- load().forEach(r=>{
-  if(!combined.has(String(r.id)))combined.set(String(r.id),r);
- });
- return [...combined.values()];
-}
-
-function mapCloudReport(r){
- return {
-  id:String(r.id),
-  type:r.tipo,
-  street:r.calle,
-  department:r.departamento,
-  severity:r.gravedad,
-  description:r.descripcion||'',
-  photo:r.foto_url||'',
-  lat:Number(r.lat),
-  lng:Number(r.lng),
-  status:r.estado,
-  created:r.fecha_creacion,
-  locationSource:'cloud'
- };
-}
-
-async function refreshCloudReports(){
- try{
-  const response=await fetch(
-   SUPABASE_URL+'/rest/v1/reportes?select=*&order=fecha_creacion.desc',
-   {headers:{apikey:SUPABASE_KEY,Accept:'application/json'}}
-  );
-
-  if(!response.ok){
-   throw new Error('Supabase '+response.status+': '+await response.text());
-  }
-
-  cloudReports=(await response.json()).map(mapCloudReport);
-  cloudReady=true;
-
-  updateStats();
-  renderMap(false);
-
-  if(!$('tab-listado').classList.contains('hidden')){
-   renderList();
-  }
-
-  return true;
-
- }catch(error){
-  console.error('Error leyendo Supabase:',error);
-  cloudReady=false;
-  return false;
- }
-}
-
-async function uploadCloudPhoto(file,id){
- const ext=(file.name.split('.').pop()||'jpg')
-  .toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
-
- const objectPath=id+'.'+ext;
-
- const response=await fetch(
-  SUPABASE_URL+'/storage/v1/object/fotos-reportes/'+objectPath,
-  {
-   method:'POST',
-   headers:{
-    apikey:SUPABASE_KEY,
-    'Content-Type':file.type||'image/jpeg',
-    'x-upsert':'false'
-   },
-   body:file
-  }
- );
-
- if(!response.ok){
-  throw new Error('Error subiendo foto: '+await response.text());
- }
-
- return SUPABASE_URL+'/storage/v1/object/public/fotos-reportes/'+objectPath;
-}
-
-async function insertCloudReport(r){
- const response=await fetch(SUPABASE_URL+'/rest/v1/reportes',{
-  method:'POST',
-  headers:{
-   apikey:SUPABASE_KEY,
-   'Content-Type':'application/json',
-   Prefer:'return=minimal'
-  },
-  body:JSON.stringify({
-   id:r.id,
-   tipo:r.type,
-   calle:r.street,
-   departamento:r.department,
-   gravedad:r.severity,
-   descripcion:r.description,
-   foto_url:r.photo||null,
-   lat:r.lat,
+```html
    lng:r.lng,
    estado:'Pendiente'
   })
@@ -535,37 +198,98 @@ function renderList(){
   a.map(r=>card(r)).join(''):
   '<div class="empty">Todavía no hay reportes con estos filtros.</div>';
 }
+   async function adminFetch(path,options={}){
+ const headers=Object.assign({
+  apikey:SUPABASE_KEY,
+  Authorization:'Bearer '+adminAccessToken,
+  Accept:'application/json'
+ },options.headers||{});
 
-function renderAdmin(){
- $('adminList').innerHTML=load()
-  .sort((a,b)=>b.created.localeCompare(a.created))
-  .map(r=>card(r,true)).join('')||
-  '<div class="empty">No hay reportes. Podés agregar uno de ejemplo.</div>';
+ return fetch(SUPABASE_URL+path,Object.assign({},options,{headers}));
+}
 
- document.querySelectorAll('[data-status]').forEach(s=>
-  s.addEventListener('change',()=>{
-   const a=load(),r=a.find(x=>x.id===s.dataset.status);
+async function renderAdmin(){
+ if(!admin)return;
 
-   if(r){
-    r.status=s.value;
-    save(a);
-    renderAdmin();
+ const loaded=await refreshCloudReports();
+ if(!loaded){
+  $('adminList').innerHTML='<div class="empty">No se pudieron cargar los reportes de la nube. Verificá la conexión e intentá actualizar.</div>';
+  return;
+ }
+
+ const reports=getReports().sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
+ $('adminList').innerHTML=reports.length?
+  reports.map(r=>card(r,true)).join(''):
+  '<div class="empty">Todavía no hay reportes registrados.</div>';
+
+ document.querySelectorAll('[data-status]').forEach(select=>{
+  select.addEventListener('change',async()=>{
+   const id=select.dataset.status;
+   const newStatus=select.value;
+   select.disabled=true;
+
+   try{
+    const isCloud=cloudReports.some(r=>String(r.id)===String(id));
+
+    if(isCloud){
+     const response=await adminFetch('/rest/v1/reportes?id=eq.'+encodeURIComponent(id),{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json',Prefer:'return=minimal'},
+      body:JSON.stringify({estado:newStatus})
+     });
+     if(!response.ok)throw new Error(await response.text());
+    }
+
+    const local=load();
+    const localReport=local.find(r=>String(r.id)===String(id));
+    if(localReport){
+     localReport.status=newStatus;
+     save(local);
+    }
+
+    await renderAdmin();
     updateStats();
-    renderMap();
-   }
-  })
- );
+    renderMap(false);
+    if(!$('tab-listado').classList.contains('hidden'))renderList();
 
- document.querySelectorAll('[data-delete]').forEach(b=>
-  b.addEventListener('click',()=>{
-   if(confirm('¿Eliminar este reporte de este dispositivo?')){
-    save(load().filter(r=>r.id!==b.dataset.delete));
-    renderAdmin();
-    updateStats();
-    renderMap();
+   }catch(error){
+    alert('No se pudo actualizar el estado del reporte. '+error.message);
+    await renderAdmin();
    }
-  })
- );
+  });
+ });
+
+ document.querySelectorAll('[data-delete]').forEach(button=>{
+  button.addEventListener('click',async()=>{
+   const id=button.dataset.delete;
+   if(!confirm('¿Eliminar definitivamente este reporte? Esta acción no se puede deshacer.'))return;
+
+   button.disabled=true;
+   try{
+    const isCloud=cloudReports.some(r=>String(r.id)===String(id));
+
+    if(isCloud){
+     const response=await adminFetch('/rest/v1/reportes?id=eq.'+encodeURIComponent(id),{
+      method:'DELETE',
+      headers:{Prefer:'return=minimal'}
+     });
+     if(!response.ok)throw new Error(await response.text());
+    }
+
+    cloudReports=cloudReports.filter(r=>String(r.id)!==String(id));
+    save(load().filter(r=>String(r.id)!==String(id)));
+
+    await renderAdmin();
+    updateStats();
+    renderMap(false);
+    if(!$('tab-listado').classList.contains('hidden'))renderList();
+
+   }catch(error){
+    alert('No se pudo eliminar el reporte. '+error.message);
+    await renderAdmin();
+   }
+  });
+ });
 }
 
 function fillDepartments(){
@@ -683,8 +407,7 @@ async function reverseGeocode(lat,lng){
   return '';
  }
 }
-
-async function repairCorreaSaaReport(){
+   async function repairCorreaSaaReport(){
  const reports=load();
 
  const target=reports.find(r=>
@@ -836,22 +559,81 @@ $('locateMap').onclick=()=>{
  });
 };
 
-$('loginBtn').onclick=()=>{
- if($('adminPin').value==='2468'){
+$('loginBtn').onclick=async()=>{
+ const email=$('adminEmail').value.trim();
+ const password=$('adminPassword').value;
+
+ if(!email||!password){
+  alert('Ingresá tu correo y contraseña.');
+  return;
+ }
+
+ $('loginBtn').disabled=true;
+ $('loginBtn').textContent='Verificando…';
+
+ try{
+  const authResponse=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+   method:'POST',
+   headers:{
+    apikey:SUPABASE_KEY,
+    'Content-Type':'application/json'
+   },
+   body:JSON.stringify({email,password})
+  });
+
+  const authData=await authResponse.json();
+
+  if(!authResponse.ok||!authData.access_token||!authData.user||!authData.user.id){
+   throw new Error(authData.msg||authData.message||'Correo o contraseña incorrectos.');
+  }
+
+  const token=authData.access_token;
+  const checkResponse=await fetch(
+   SUPABASE_URL+'/rest/v1/admin_users?select=user_id&user_id=eq.'+encodeURIComponent(authData.user.id),
+   {
+    headers:{
+     apikey:SUPABASE_KEY,
+     Authorization:'Bearer '+token,
+     Accept:'application/json'
+    }
+   }
+  );
+
+  if(!checkResponse.ok){
+   throw new Error('No se pudo comprobar el permiso de administrador: '+await checkResponse.text());
+  }
+
+  const authorizedUsers=await checkResponse.json();
+  if(!Array.isArray(authorizedUsers)||authorizedUsers.length===0){
+   throw new Error('La cuenta ingresada no está autorizada como administradora.');
+  }
+
+  adminAccessToken=token;
   admin=true;
   $('adminLogin').classList.add('hidden');
   $('adminPanel').classList.remove('hidden');
-  renderAdmin();
- }else{
-  alert('PIN incorrecto');
+  $('adminEmail').value='';
+  $('adminPassword').value='';
+  await renderAdmin();
+
+ }catch(error){
+  admin=false;
+  adminAccessToken=null;
+  alert('No se pudo iniciar sesión. '+error.message);
+
+ }finally{
+  $('loginBtn').disabled=false;
+  $('loginBtn').textContent='Ingresar';
  }
 };
 
 $('logoutBtn').onclick=()=>{
  admin=false;
+ adminAccessToken=null;
  $('adminLogin').classList.remove('hidden');
  $('adminPanel').classList.add('hidden');
- $('adminPin').value='';
+ $('adminPassword').value='';
+ $('adminList').innerHTML='';
 };
 
 $('exportBtn').onclick=()=>{
@@ -872,29 +654,6 @@ $('exportBtn').onclick=()=>{
  a.download='mendoza-sin-baches-reportes.csv';
  a.click();
  URL.revokeObjectURL(a.href);
-};
-
-$('demoBtn').onclick=()=>{
- const a=load();
-
- a.push({
-  id:String(Date.now()),
-  type:'Pozo / bache',
-  street:'Reporte de ejemplo — reemplazar por una ubicación real',
-  department:'Capital',
-  severity:'Alta',
-  description:'Dato ficticio para probar el panel. No representa un reclamo real.',
-  photo:'',
-  lat:-32.8895,
-  lng:-68.8458,
-  status:'Pendiente',
-  created:new Date().toISOString()
- });
-
- save(a);
- renderAdmin();
- renderMap();
- updateStats();
 };
 
 fillDepartments();

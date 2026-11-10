@@ -1,34 +1,153 @@
+
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,user-scalable=yes,viewport-fit=cover">
 <title>Mendoza Sin Baches</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <style>
-:root{--green:#176b45;--bg:#f3f6f4;--ink:#17231d;--muted:#66756c;--red:#d83b3b;--yellow:#d99a00;--blue:#2563eb}
+:root{
+ --green:#176b45;
+ --bg:#f3f6f4;
+ --ink:#17231d;
+ --muted:#66756c;
+ --red:#d83b3b;
+ --yellow:#d99a00;
+ --blue:#2563eb
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Arial,sans-serif}
-header{background:var(--green);color:white;padding:18px 16px 14px;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px #0002}
+body{
+ margin:0;
+ background:var(--bg);
+ color:var(--ink);
+ font-family:system-ui,-apple-system,Arial,sans-serif
+}
+header{
+ background:var(--green);
+ color:white;
+ padding:18px 16px 14px;
+ position:sticky;
+ top:0;
+ z-index:1000;
+ box-shadow:0 2px 8px #0002
+}
 .brand{font-size:21px;font-weight:800;letter-spacing:-.4px}
 .sub{font-size:12px;opacity:.88;margin-top:3px}
-nav{display:flex;gap:8px;padding:10px;background:white;position:sticky;top:68px;z-index:900;box-shadow:0 2px 5px #0001}
-nav button{flex:1;border:0;border-radius:10px;padding:11px 4px;background:#edf2ee;color:#244332;font-weight:700;font-size:12px}
+nav{
+ display:flex;
+ gap:8px;
+ padding:10px;
+ background:white;
+ position:sticky;
+ top:68px;
+ z-index:900;
+ box-shadow:0 2px 5px #0001
+}
+nav button{
+ flex:1;
+ border:0;
+ border-radius:10px;
+ padding:11px 4px;
+ background:#edf2ee;
+ color:#244332;
+ font-weight:700;
+ font-size:12px
+}
 nav button.active{background:var(--green);color:white}
 main{padding:14px;max-width:760px;margin:auto}
-.panel{background:white;border-radius:16px;padding:15px;margin-bottom:13px;box-shadow:0 2px 10px #17231d0a}
+.panel{
+ background:white;
+ border-radius:16px;
+ padding:15px;
+ margin-bottom:13px;
+ box-shadow:0 2px 10px #17231d0a
+}
 h2{font-size:18px;margin:0 0 12px}
-label{font-size:13px;font-weight:700;display:block;margin:12px 0 6px}
-input,select,textarea{width:100%;padding:12px;border:1px solid #d6dfd9;border-radius:10px;background:#fff;font:inherit;color:var(--ink)}
+label{
+ font-size:13px;
+ font-weight:700;
+ display:block;
+ margin:12px 0 6px
+}
+input,select,textarea{
+ width:100%;
+ padding:12px;
+ border:1px solid #d6dfd9;
+ border-radius:10px;
+ background:#fff;
+ font:inherit;
+ color:var(--ink)
+}
 textarea{min-height:75px;resize:vertical}
-.btn{border:0;border-radius:11px;background:var(--green);color:white;font-weight:750;padding:13px 15px;width:100%;font-size:15px;margin-top:12px}
+.btn{
+ border:0;
+ border-radius:11px;
+ background:var(--green);
+ color:white;
+ font-weight:750;
+ padding:13px 15px;
+ width:100%;
+ font-size:15px;
+ margin-top:12px
+}
 .btn.secondary{background:#e9f0eb;color:#204631}
 .btn.danger{background:#b42323}
-#map{height:420px;min-height:320px;border-radius:14px;overflow:hidden;background:#e5ebe7;position:relative;touch-action:pan-x pan-y}
-#map.expanded{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;min-height:100dvh!important;z-index:3000;border-radius:0}
-.map-expand{position:absolute;z-index:1000;top:10px;right:10px;background:#fff;color:#17231d;border:1px solid #b8c4bc;border-radius:9px;padding:10px 12px;font-weight:800;box-shadow:0 2px 8px #0003}
-.map-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#526158;margin:8px 0}
-.legend-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+.btn:disabled{opacity:.55}
+#map{
+ height:420px;
+ min-height:320px;
+ border-radius:14px;
+ overflow:hidden;
+ background:#e5ebe7;
+ position:relative;
+ touch-action:pan-x pan-y
+}
+#map.expanded{
+ position:fixed!important;
+ inset:0!important;
+ width:100vw!important;
+ height:100dvh!important;
+ min-height:100dvh!important;
+ z-index:3000;
+ border-radius:0
+}
+#locationPicker{
+ height:340px;
+ border-radius:12px;
+ overflow:hidden;
+ background:#e5ebe7
+}
+.map-expand{
+ position:absolute;
+ z-index:1000;
+ top:10px;
+ right:10px;
+ background:#fff;
+ color:#17231d;
+ border:1px solid #b8c4bc;
+ border-radius:9px;
+ padding:10px 12px;
+ font-weight:800;
+ box-shadow:0 2px 8px #0003
+}
+.map-legend{
+ display:flex;
+ gap:12px;
+ flex-wrap:wrap;
+ font-size:12px;
+ color:#526158;
+ margin:8px 0
+}
+.legend-dot{
+ display:inline-block;
+ width:10px;
+ height:10px;
+ border-radius:50%;
+ margin-right:4px
+}
 body.map-open{overflow:hidden}
 .hint{font-size:12px;color:var(--muted);line-height:1.5}
 .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -48,176 +167,247 @@ body.map-open{overflow:hidden}
 .row>*{flex:1;min-width:0}
 .empty{text-align:center;padding:22px;color:var(--muted)}
 footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24px}
+.location-box{
+ background:#f3f7f4;
+ border:1px solid #dce7df;
+ padding:10px;
+ border-radius:10px;
+ margin-top:10px
+}
+@media(max-width:480px){
+ nav{gap:5px;padding:8px}
+ nav button{font-size:11px;padding:10px 2px}
+ .row{gap:6px}
+}
 </style>
 </head>
+
 <body>
 
 <header>
-<div class="brand">🛣️ Mendoza Sin Baches</div>
-<div class="sub">Reportá daños viales. Hagamos visibles los problemas.</div>
+ <div class="brand">🛣️ Mendoza Sin Baches</div>
+ <div class="sub">Reportá daños viales. Hagamos visibles los problemas.</div>
 </header>
 
 <nav>
-<button class="active" data-tab="mapa">🗺️ Mapa</button>
-<button data-tab="reportar">＋ Reportar</button>
-<button data-tab="listado">📋 Reportes</button>
-<button data-tab="admin">🔐 Admin</button>
+ <button class="active" data-tab="mapa">🗺️ Mapa</button>
+ <button data-tab="reportar">＋ Reportar</button>
+ <button data-tab="listado">📋 Reportes</button>
+ <button data-tab="admin">🔐 Admin</button>
 </nav>
 
 <main>
 
+<!-- MAPA GENERAL -->
 <section id="tab-mapa">
-<div class="panel">
-<h2>Mapa de reportes</h2>
-<div class="hint" style="margin-bottom:10px">
-Los marcadores muestran los reportes compartidos en la nube y los respaldos locales. Se necesita conexión a internet.
-</div>
-<div class="map-legend">
-<span><i class="legend-dot" style="background:#2563eb"></i>Tu ubicación</span>
-<span><i class="legend-dot" style="background:#dc2626"></i>Gravedad alta</span>
-<span><i class="legend-dot" style="background:#d99a00"></i>Gravedad media</span>
-<span><i class="legend-dot" style="background:#16a34a"></i>Gravedad baja</span>
-</div>
-<div id="map">
-<button type="button" class="map-expand" id="expandMap">⛶ Ampliar mapa</button>
-</div>
-<div class="row">
-<button class="btn secondary" id="refreshMap">Actualizar y enfocar reportes</button>
-<button class="btn secondary" id="locateMap">📍 Mi ubicación</button>
-</div>
-</div>
+ <div class="panel">
+  <h2>Mapa de reportes</h2>
+  <div class="hint" style="margin-bottom:10px">
+   Los marcadores muestran los reportes compartidos en la nube y los respaldos locales.
+  </div>
 
-<div class="panel">
-<h2>Estado de los reportes</h2>
-<div class="stats">
-<div class="stat"><div class="num" id="countAll">0</div><div class="small">Total</div></div>
-<div class="stat"><div class="num" id="countOpen">0</div><div class="small">Pendientes</div></div>
-<div class="stat"><div class="num" id="countRepair">0</div><div class="small">En reparación</div></div>
-<div class="stat"><div class="num" id="countFixed">0</div><div class="small">Solucionados</div></div>
-</div>
-</div>
+  <div class="map-legend">
+   <span><i class="legend-dot" style="background:#2563eb"></i>Tu ubicación</span>
+   <span><i class="legend-dot" style="background:#dc2626"></i>Gravedad alta</span>
+   <span><i class="legend-dot" style="background:#d99a00"></i>Gravedad media</span>
+   <span><i class="legend-dot" style="background:#16a34a"></i>Gravedad baja</span>
+  </div>
+
+  <label for="baseMapSelect">Tipo de mapa</label>
+  <select id="baseMapSelect">
+   <option value="voyager">Calles detalladas</option>
+   <option value="osm">Calles estándar</option>
+   <option value="satellite">Satélite</option>
+  </select>
+
+  <div class="hint" style="margin:6px 0 10px">
+   Podés cambiar la vista para identificar mejor las calles y los daños.
+  </div>
+
+  <div id="map">
+   <button type="button" class="map-expand" id="expandMap">⛶ Ampliar mapa</button>
+  </div>
+
+  <div class="row">
+   <button class="btn secondary" id="refreshMap">Actualizar reportes</button>
+   <button class="btn secondary" id="locateMap">📍 Mi ubicación</button>
+  </div>
+ </div>
+
+ <div class="panel">
+  <h2>Estado de los reportes</h2>
+  <div class="stats">
+   <div class="stat"><div class="num" id="countAll">0</div><div class="small">Total</div></div>
+   <div class="stat"><div class="num" id="countOpen">0</div><div class="small">Pendientes</div></div>
+   <div class="stat"><div class="num" id="countRepair">0</div><div class="small">En reparación</div></div>
+   <div class="stat"><div class="num" id="countFixed">0</div><div class="small">Solucionados</div></div>
+  </div>
+ </div>
 </section>
 
+<!-- FORMULARIO CIUDADANO -->
 <section id="tab-reportar" class="hidden">
-<div class="panel">
-<h2>Reportar calle dañada</h2>
-<div class="hint">No necesitás crear una cuenta. Completá los datos y, si podés, adjuntá una foto tomada en el lugar.</div>
+ <div class="panel">
+  <h2>Reportar calle dañada</h2>
+  <div class="hint">
+   No necesitás crear una cuenta. Completá los datos y, si podés, adjuntá una foto tomada en el lugar.
+  </div>
 
-<form id="reportForm">
-<label for="tipo">Tipo de daño</label>
-<select id="tipo" required>
-<option value="Pozo / bache">Pozo / bache</option>
-<option value="Calle rota">Calle rota</option>
-<option value="Hundimiento">Hundimiento</option>
-<option value="Calzada peligrosa">Calzada peligrosa</option>
-<option value="Otro">Otro</option>
-</select>
+  <form id="reportForm">
 
-<label for="calle">Calle y altura o intersección</label>
-<input id="calle" placeholder="Ej.: San Martín 1200 o San Martín y Garibaldi" maxlength="160">
+   <label for="tipo">Tipo de daño</label>
+   <select id="tipo" required>
+    <option value="Pozo / bache">Pozo / bache</option>
+    <option value="Calle rota">Calle rota</option>
+    <option value="Hundimiento">Hundimiento</option>
+    <option value="Calzada peligrosa">Calzada peligrosa</option>
+    <option value="Otro">Otro</option>
+   </select>
 
-<label for="departamento">Departamento</label>
-<select id="departamento" required>
-<option value="">Elegir departamento…</option>
-<option>Capital</option>
-<option>Godoy Cruz</option>
-<option>Guaymallén</option>
-<option>Las Heras</option>
-<option>Maipú</option>
-<option>Luján de Cuyo</option>
-<option>Lavalle</option>
-<option>Junín</option>
-<option>La Paz</option>
-<option>Rivadavia</option>
-<option>San Carlos</option>
-<option>San Martín</option>
-<option>Santa Rosa</option>
-<option>Tunuyán</option>
-<option>Tupungato</option>
-<option>General Alvear</option>
-<option>Malargüe</option>
-<option>San Rafael</option>
-</select>
+   <label for="calle">Calle y altura o intersección</label>
+   <input id="calle" placeholder="Ej.: Correa Saa 389 o San Martín y Garibaldi" maxlength="160" required>
 
-<label for="gravedad">Gravedad estimada</label>
-<select id="gravedad">
-<option value="Alta">Alta — peligro o daño importante</option>
-<option value="Media" selected>Media — requiere reparación</option>
-<option value="Baja">Baja — daño menor</option>
-</select>
+   <label for="departamento">Departamento</label>
+   <select id="departamento" required>
+    <option value="">Elegir departamento…</option>
+    <option>Capital</option>
+    <option>Godoy Cruz</option>
+    <option>Guaymallén</option>
+    <option>Las Heras</option>
+    <option>Maipú</option>
+    <option>Luján de Cuyo</option>
+    <option>Lavalle</option>
+    <option>Junín</option>
+    <option>La Paz</option>
+    <option>Rivadavia</option>
+    <option>San Carlos</option>
+    <option>San Martín</option>
+    <option>Santa Rosa</option>
+    <option>Tunuyán</option>
+    <option>Tupungato</option>
+    <option>General Alvear</option>
+    <option>Malargüe</option>
+    <option>San Rafael</option>
+   </select>
 
-<label for="descripcion">Descripción (opcional)</label>
-<textarea id="descripcion" placeholder="Tamaño aproximado, carril afectado, riesgo para motos o bicicletas…" maxlength="500"></textarea>
+   <label for="gravedad">Gravedad estimada</label>
+   <select id="gravedad">
+    <option value="Alta">Alta — peligro o daño importante</option>
+    <option value="Media" selected>Media — requiere reparación</option>
+    <option value="Baja">Baja — daño menor</option>
+   </select>
 
-<label for="foto">Fotografía (opcional)</label>
-<input id="foto" type="file" accept="image/*" capture="environment">
-<div class="hint">La fotografía se subirá al almacenamiento online. Evitá fotografiar rostros o patentes innecesariamente.</div>
+   <label for="descripcion">Descripción (opcional)</label>
+   <textarea id="descripcion" placeholder="Tamaño aproximado, carril afectado, riesgo para motos o bicicletas…" maxlength="500"></textarea>
 
-<label>Ubicación del daño</label>
-<div class="row">
-<button type="button" class="btn secondary" id="getLocation">📍 Obtener ubicación GPS</button>
-<button type="button" class="btn secondary" id="clearLocation">Quitar GPS</button>
-</div>
+   <label for="foto">Fotografía (opcional)</label>
+   <input id="foto" type="file" accept="image/*" capture="environment">
+   <div class="hint">
+    La fotografía se subirá al almacenamiento online. Evitá fotografiar rostros o patentes innecesariamente.
+   </div>
 
-<div id="gpsText" class="hint" style="margin-top:6px">
-Por defecto se utiliza la dirección escrita. Si estás en el lugar del daño, obtené la ubicación GPS.
-</div>
+   <label>Ubicación del daño</label>
 
-<label style="display:flex;align-items:center;gap:8px;font-weight:600">
-<input id="useGps" type="checkbox" style="width:auto">
-Usar mi GPS como ubicación del daño (estoy en el lugar)
-</label>
+   <div class="row">
+    <button type="button" class="btn secondary" id="getLocation">📍 Obtener GPS</button>
+    <button type="button" class="btn secondary" id="clearLocation">Quitar ubicación</button>
+   </div>
 
-<button class="btn" type="submit">Enviar reporte</button>
-</form>
-</div>
+   <div id="gpsText" class="hint" style="margin-top:8px">
+    Elegí GPS o buscá una dirección para ubicar el daño.
+   </div>
+
+   <label style="display:flex;align-items:center;gap:8px;font-weight:600">
+    <input id="useGps" type="checkbox" style="width:auto">
+    Usar mi GPS como ubicación del daño
+   </label>
+
+   <div class="location-box">
+    <label for="pickerMapSelect">Mapa para seleccionar el punto</label>
+    <select id="pickerMapSelect">
+     <option value="voyager">Calles detalladas</option>
+     <option value="osm">Calles estándar</option>
+     <option value="satellite">Satélite</option>
+    </select>
+
+    <button type="button" class="btn secondary" id="findAddressBtn">
+     🔎 Buscar dirección en el mapa
+    </button>
+
+    <div id="locationPickerWrap" class="hidden" style="margin-top:12px">
+     <div class="hint" style="margin-bottom:8px">
+      Mové el marcador hasta el lugar exacto del daño o tocá otro punto del mapa.
+     </div>
+     <div id="locationPicker"></div>
+     <div id="selectedLocationText" class="hint" style="margin-top:8px"></div>
+     <button type="button" class="btn secondary" id="confirmLocationBtn">
+      Confirmar esta ubicación
+     </button>
+    </div>
+   </div>
+
+   <button class="btn" type="submit">Enviar reporte</button>
+  </form>
+ </div>
 </section>
 
+<!-- LISTADO -->
 <section id="tab-listado" class="hidden">
-<div class="panel">
-<h2>Reportes ciudadanos</h2>
-<div class="row">
-<select id="filterDept"><option value="">Todos los departamentos</option></select>
-<select id="filterStatus">
-<option value="">Todos los estados</option>
-<option>Pendiente</option>
-<option>Informado al municipio</option>
-<option>En reparación</option>
-<option>Solucionado</option>
-</select>
-</div>
-<div id="reportList"></div>
-</div>
+ <div class="panel">
+  <h2>Reportes ciudadanos</h2>
+  <div class="row">
+   <select id="filterDept">
+    <option value="">Todos los departamentos</option>
+   </select>
+   <select id="filterStatus">
+    <option value="">Todos los estados</option>
+    <option>Pendiente</option>
+    <option>Informado al municipio</option>
+    <option>En reparación</option>
+    <option>Solucionado</option>
+   </select>
+  </div>
+  <div id="reportList"></div>
+ </div>
 </section>
 
+<!-- ADMINISTRACIÓN -->
 <section id="tab-admin" class="hidden">
-<div class="panel">
-<h2>Panel administrativo</h2>
-<div class="hint">Acceso privado para administradores autorizados. Los ciudadanos pueden enviar reportes sin iniciar sesión.</div>
-<div id="adminLogin">
-<label for="adminEmail">Correo administrador</label>
-<input id="adminEmail" type="email" autocomplete="username" placeholder="tu correo">
-<label for="adminPassword">Contraseña</label>
-<input id="adminPassword" type="password" autocomplete="current-password" placeholder="Tu contraseña">
-<button class="btn" id="loginBtn">Ingresar</button>
-<div class="hint">Ingresá con el correo y la contraseña del usuario administrador registrado en Supabase.</div>
-</div>
-<div id="adminPanel" class="hidden">
-<div class="row">
-<button class="btn secondary" id="exportBtn">Exportar CSV</button>
-<button class="btn danger" id="logoutBtn">Cerrar sesión</button>
-</div>
-<div id="adminList"></div>
+ <div class="panel">
+  <h2>Panel administrativo</h2>
+  <div class="hint">
+   Acceso privado para administradores autorizados. Los ciudadanos pueden enviar reportes sin iniciar sesión.
+  </div>
 
-</div>
-</div>
+  <div id="adminLogin">
+   <label for="adminEmail">Correo administrador</label>
+   <input id="adminEmail" type="email" autocomplete="username" placeholder="tu correo">
+
+   <label for="adminPassword">Contraseña</label>
+   <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Tu contraseña">
+
+   <button class="btn" id="loginBtn">Ingresar</button>
+   <div class="hint">Ingresá con el correo y la contraseña del usuario administrador registrado en Supabase.</div>
+  </div>
+
+  <div id="adminPanel" class="hidden">
+   <div class="row">
+    <button class="btn secondary" id="exportBtn">Exportar CSV</button>
+    <button class="btn danger" id="logoutBtn">Cerrar sesión</button>
+   </div>
+   <div id="adminList"></div>
+  </div>
+ </div>
 </section>
 
 </main>
 
-<footer>Prototipo 0.2 · Mendoza, Argentina · Reportes compartidos mediante Supabase.</footer>
+<footer>
+ Prototipo 0.3 · Mendoza, Argentina · Reportes compartidos mediante Supabase.
+</footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
 const KEY='msb_reports_v1';
 const SUPABASE_URL='https://uqluaeyncxyuawsvosnn.supabase.co';
@@ -225,13 +415,74 @@ const SUPABASE_KEY='sb_publishable__gBqxSO2cHoPHmsBU8Qtow_iXaMpgau';
 
 let cloudReports=[];
 let cloudReady=false;
-let gps=null,map=null,markers=[],userMarker=null,admin=false,mapExpanded=false,adminAccessToken=null;
+let gps=null;
+let map=null;
+let markers=[];
+let userMarker=null;
+let admin=false;
+let mapExpanded=false;
+let adminAccessToken=null;
+
+let pickerMap=null;
+let pickerMarker=null;
+let selectedAddressLocation=null;
+let locationConfirmed=false;
 
 const $=id=>document.getElementById(id);
 
+/* ==========================================
+   MAPAS GRATUITOS
+========================================== */
+
+const MAP_TILES={
+ voyager:{
+  url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  options:{
+   maxZoom:20,
+   attribution:'© OpenStreetMap contributors · © CARTO'
+  }
+ },
+ osm:{
+  url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  options:{
+   maxZoom:19,
+   attribution:'© OpenStreetMap contributors'
+  }
+ },
+ satellite:{
+  url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  options:{
+   maxZoom:19,
+   attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community'
+  }
+ }
+};
+
+function setBaseLayer(targetMap,type){
+ if(!targetMap)return;
+
+ const config=MAP_TILES[type]||MAP_TILES.voyager;
+
+ if(targetMap._msbBaseLayer){
+  targetMap.removeLayer(targetMap._msbBaseLayer);
+ }
+
+ targetMap._msbBaseLayer=L.tileLayer(
+  config.url,
+  config.options
+ ).addTo(targetMap);
+}
+
+/* ==========================================
+   ALMACENAMIENTO LOCAL
+========================================== */
+
 function load(){
- try{return JSON.parse(localStorage.getItem(KEY)||'[]')}
- catch(e){return []}
+ try{
+  return JSON.parse(localStorage.getItem(KEY)||'[]');
+ }catch(e){
+  return [];
+ }
 }
 
 function save(data){
@@ -240,12 +491,23 @@ function save(data){
 
 function getReports(){
  const combined=new Map();
- cloudReports.forEach(r=>combined.set(String(r.id),r));
- load().forEach(r=>{
-  if(!combined.has(String(r.id)))combined.set(String(r.id),r);
+
+ cloudReports.forEach(r=>{
+  combined.set(String(r.id),r);
  });
+
+ load().forEach(r=>{
+  if(!combined.has(String(r.id))){
+   combined.set(String(r.id),r);
+  }
+ });
+
  return [...combined.values()];
 }
+
+/* ==========================================
+   SUPABASE
+========================================== */
 
 function mapCloudReport(r){
  return {
@@ -268,7 +530,12 @@ async function refreshCloudReports(){
  try{
   const response=await fetch(
    SUPABASE_URL+'/rest/v1/reportes?select=*&order=fecha_creacion.desc',
-   {headers:{apikey:SUPABASE_KEY,Accept:'application/json'}}
+   {
+    headers:{
+     apikey:SUPABASE_KEY,
+     Accept:'application/json'
+    }
+   }
   );
 
   if(!response.ok){
@@ -296,7 +563,8 @@ async function refreshCloudReports(){
 
 async function uploadCloudPhoto(file,id){
  const ext=(file.name.split('.').pop()||'jpg')
-  .toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g,'')||'jpg';
 
  const objectPath=id+'.'+ext;
 
@@ -321,31 +589,38 @@ async function uploadCloudPhoto(file,id){
 }
 
 async function insertCloudReport(r){
- const response=await fetch(SUPABASE_URL+'/rest/v1/reportes',{
-  method:'POST',
-  headers:{
-   apikey:SUPABASE_KEY,
-   'Content-Type':'application/json',
-   Prefer:'return=minimal'
-  },
-  body:JSON.stringify({
-   id:r.id,
-   tipo:r.type,
-   calle:r.street,
-   departamento:r.department,
-   gravedad:r.severity,
-   descripcion:r.description,
-   foto_url:r.photo||null,
-   lat:r.lat,
-   lng:r.lng,
-   estado:'Pendiente'
-  })
- });
+ const response=await fetch(
+  SUPABASE_URL+'/rest/v1/reportes',
+  {
+   method:'POST',
+   headers:{
+    apikey:SUPABASE_KEY,
+    'Content-Type':'application/json',
+    Prefer:'return=minimal'
+   },
+   body:JSON.stringify({
+    id:r.id,
+    tipo:r.type,
+    calle:r.street,
+    departamento:r.department,
+    gravedad:r.severity,
+    descripcion:r.description,
+    foto_url:r.photo||null,
+    lat:r.lat,
+    lng:r.lng,
+    estado:'Pendiente'
+   })
+  }
+ );
 
  if(!response.ok){
   throw new Error('Error guardando reporte: '+await response.text());
  }
 }
+
+/* ==========================================
+   UTILIDADES
+========================================== */
 
 function escapeHtml(s){
  return String(s??'').replace(/[&<>"']/g,c=>({
@@ -368,13 +643,20 @@ function pillSeverity(s){
  return s==='Alta'?'grave':s==='Media'?'media':'leve';
 }
 
+/* ==========================================
+   NAVEGACIÓN
+========================================== */
+
 function switchTab(tab){
- document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+ document.querySelectorAll('main section').forEach(s=>{
+  s.classList.add('hidden');
+ });
+
  $('tab-'+tab).classList.remove('hidden');
 
- document.querySelectorAll('nav button').forEach(b=>
-  b.classList.toggle('active',b.dataset.tab===tab)
- );
+ document.querySelectorAll('nav button').forEach(b=>{
+  b.classList.toggle('active',b.dataset.tab===tab);
+ });
 
  if(tab==='mapa'){
   setTimeout(async()=>{
@@ -384,17 +666,29 @@ function switchTab(tab){
   },150);
  }
 
+ if(tab==='reportar'){
+  setTimeout(()=>{
+   if(pickerMap)pickerMap.invalidateSize();
+  },150);
+ }
+
  if(tab==='listado'){
   renderList();
   refreshCloudReports();
  }
 
- if(tab==='admin'&&admin)renderAdmin();
+ if(tab==='admin'&&admin){
+  renderAdmin();
+ }
 }
 
-document.querySelectorAll('nav button').forEach(b=>
- b.addEventListener('click',()=>switchTab(b.dataset.tab))
-);
+document.querySelectorAll('nav button').forEach(b=>{
+ b.addEventListener('click',()=>switchTab(b.dataset.tab));
+});
+
+/* ==========================================
+   MAPA GENERAL
+========================================== */
 
 function initMap(){
  if(!window.L){
@@ -413,10 +707,11 @@ function initMap(){
   boxZoom:true
  }).setView([-32.8895,-68.8458],12);
 
- L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19,
-  attribution:'© OpenStreetMap'
- }).addTo(map);
+ setBaseLayer(map,'voyager');
+
+ $('baseMapSelect').addEventListener('change',e=>{
+  setBaseLayer(map,e.target.value);
+ });
 
  renderMap(true);
 }
@@ -435,14 +730,18 @@ function fitReportMarkers(){
 
 function setMapExpanded(expanded){
  mapExpanded=expanded;
+
  $('map').classList.toggle('expanded',expanded);
  $('expandMap').textContent=expanded?'✕ Cerrar mapa':'⛶ Ampliar mapa';
+
  document.body.classList.toggle('map-open',expanded);
 
  setTimeout(()=>{
   if(map){
    map.invalidateSize();
-   if(expanded&&markers.length)fitReportMarkers();
+   if(expanded&&markers.length){
+    fitReportMarkers();
+   }
   }
  },180);
 }
@@ -453,7 +752,9 @@ $('expandMap').addEventListener('click',e=>{
 });
 
 document.addEventListener('keydown',e=>{
- if(e.key==='Escape'&&mapExpanded)setMapExpanded(false);
+ if(e.key==='Escape'&&mapExpanded){
+  setMapExpanded(false);
+ }
 });
 
 function renderMap(fit=true){
@@ -463,7 +764,8 @@ function renderMap(fit=true){
  markers=[];
 
  const reports=getReports().filter(r=>
-  r.lat!==null&&r.lng!==null&&
+  r.lat!==null&&
+  r.lng!==null&&
   Number.isFinite(Number(r.lat))&&
   Number.isFinite(Number(r.lng))
  );
@@ -474,7 +776,13 @@ function renderMap(fit=true){
 
   const marker=L.circleMarker(
    [Number(r.lat),Number(r.lng)],
-   {radius:11,color:'#fff',weight:3,fillColor:color,fillOpacity:1}
+   {
+    radius:11,
+    color:'#fff',
+    weight:3,
+    fillColor:color,
+    fillOpacity:1
+   }
   ).addTo(map);
 
   const googleUrl='https://www.google.com/maps/search/?api=1&query='+
@@ -493,8 +801,14 @@ function renderMap(fit=true){
   markers.push(marker);
  });
 
- if(fit&&markers.length)fitReportMarkers();
+ if(fit&&markers.length){
+  fitReportMarkers();
+ }
 }
+
+/* ==========================================
+   ESTADÍSTICAS
+========================================== */
 
 function updateStats(){
  const a=getReports();
@@ -504,6 +818,10 @@ function updateStats(){
  $('countRepair').textContent=a.filter(r=>r.status==='En reparación').length;
  $('countFixed').textContent=a.filter(r=>r.status==='Solucionado').length;
 }
+
+/* ==========================================
+   TARJETAS Y LISTADO
+========================================== */
 
 function card(r,manage=false){
  return `<article class="report">
@@ -516,13 +834,22 @@ function card(r,manage=false){
  </div>
  ${r.description?`<p>${escapeHtml(r.description)}</p>`:''}
  ${r.photo?`<img src="${r.photo}" alt="Foto del daño">`:''}
- <div style="margin-top:9px"><span class="pill status">${escapeHtml(r.status)}</span></div>
- ${r.lat!=null?`<div class="hint" style="margin-top:7px">Coordenadas: ${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}</div>`:''}
- ${manage?`<label>Actualizar estado</label>
+ <div style="margin-top:9px">
+ <span class="pill status">${escapeHtml(r.status)}</span>
+ </div>
+ ${r.lat!=null?`
+ <div class="hint" style="margin-top:7px">
+ Coordenadas: ${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}
+ </div>`:''}
+ ${manage?`
+ <label>Actualizar estado</label>
  <select data-status="${r.id}">
- ${['Pendiente','Informado al municipio','En reparación','Solucionado'].map(s=>`<option ${s===r.status?'selected':''}>${s}</option>`).join('')}
+ ${['Pendiente','Informado al municipio','En reparación','Solucionado'].map(s=>
+  `<option ${s===r.status?'selected':''}>${s}</option>`
+ ).join('')}
  </select>
- <button class="btn secondary" data-delete="${r.id}">Eliminar reporte</button>`:''}
+ <button class="btn secondary" data-delete="${r.id}">Eliminar reporte</button>
+ `:''}
  </article>`;
 }
 
@@ -530,12 +857,16 @@ function renderList(){
  const a=getReports().filter(r=>
   (!$('filterDept').value||r.department===$('filterDept').value)&&
   (!$('filterStatus').value||r.status===$('filterStatus').value)
- ).sort((x,y)=>y.created.localeCompare(x.created));
+ ).sort((x,y)=>String(y.created||'').localeCompare(String(x.created||'')));
 
  $('reportList').innerHTML=a.length?
   a.map(r=>card(r)).join(''):
   '<div class="empty">Todavía no hay reportes con estos filtros.</div>';
 }
+
+/* ==========================================
+   ADMINISTRACIÓN
+========================================== */
 
 async function adminFetch(path,options={}){
  const headers=Object.assign({
@@ -544,19 +875,27 @@ async function adminFetch(path,options={}){
   Accept:'application/json'
  },options.headers||{});
 
- return fetch(SUPABASE_URL+path,Object.assign({},options,{headers}));
+ return fetch(
+  SUPABASE_URL+path,
+  Object.assign({},options,{headers})
+ );
 }
 
 async function renderAdmin(){
  if(!admin)return;
 
  const loaded=await refreshCloudReports();
+
  if(!loaded){
-  $('adminList').innerHTML='<div class="empty">No se pudieron cargar los reportes de la nube. Verificá la conexión e intentá actualizar.</div>';
+  $('adminList').innerHTML=
+   '<div class="empty">No se pudieron cargar los reportes de la nube. Verificá la conexión e intentá actualizar.</div>';
   return;
  }
 
- const reports=getReports().sort((a,b)=>String(b.created||'').localeCompare(String(a.created||'')));
+ const reports=getReports().sort((a,b)=>
+  String(b.created||'').localeCompare(String(a.created||''))
+ );
+
  $('adminList').innerHTML=reports.length?
   reports.map(r=>card(r,true)).join(''):
   '<div class="empty">Todavía no hay reportes registrados.</div>';
@@ -571,16 +910,26 @@ async function renderAdmin(){
     const isCloud=cloudReports.some(r=>String(r.id)===String(id));
 
     if(isCloud){
-     const response=await adminFetch('/rest/v1/reportes?id=eq.'+encodeURIComponent(id),{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json',Prefer:'return=minimal'},
-      body:JSON.stringify({estado:newStatus})
-     });
-     if(!response.ok)throw new Error(await response.text());
+     const response=await adminFetch(
+      '/rest/v1/reportes?id=eq.'+encodeURIComponent(id),
+      {
+       method:'PATCH',
+       headers:{
+        'Content-Type':'application/json',
+        Prefer:'return=minimal'
+       },
+       body:JSON.stringify({estado:newStatus})
+      }
+     );
+
+     if(!response.ok){
+      throw new Error(await response.text());
+     }
     }
 
     const local=load();
     const localReport=local.find(r=>String(r.id)===String(id));
+
     if(localReport){
      localReport.status=newStatus;
      save(local);
@@ -589,7 +938,10 @@ async function renderAdmin(){
     await renderAdmin();
     updateStats();
     renderMap(false);
-    if(!$('tab-listado').classList.contains('hidden'))renderList();
+
+    if(!$('tab-listado').classList.contains('hidden')){
+     renderList();
+    }
 
    }catch(error){
     alert('No se pudo actualizar el estado del reporte. '+error.message);
@@ -601,18 +953,28 @@ async function renderAdmin(){
  document.querySelectorAll('[data-delete]').forEach(button=>{
   button.addEventListener('click',async()=>{
    const id=button.dataset.delete;
-   if(!confirm('¿Eliminar definitivamente este reporte? Esta acción no se puede deshacer.'))return;
+
+   if(!confirm('¿Eliminar definitivamente este reporte? Esta acción no se puede deshacer.')){
+    return;
+   }
 
    button.disabled=true;
+
    try{
     const isCloud=cloudReports.some(r=>String(r.id)===String(id));
 
     if(isCloud){
-     const response=await adminFetch('/rest/v1/reportes?id=eq.'+encodeURIComponent(id),{
-      method:'DELETE',
-      headers:{Prefer:'return=minimal'}
-     });
-     if(!response.ok)throw new Error(await response.text());
+     const response=await adminFetch(
+      '/rest/v1/reportes?id=eq.'+encodeURIComponent(id),
+      {
+       method:'DELETE',
+       headers:{Prefer:'return=minimal'}
+      }
+     );
+
+     if(!response.ok){
+      throw new Error(await response.text());
+     }
     }
 
     cloudReports=cloudReports.filter(r=>String(r.id)!==String(id));
@@ -621,7 +983,10 @@ async function renderAdmin(){
     await renderAdmin();
     updateStats();
     renderMap(false);
-    if(!$('tab-listado').classList.contains('hidden'))renderList();
+
+    if(!$('tab-listado').classList.contains('hidden')){
+     renderList();
+    }
 
    }catch(error){
     alert('No se pudo eliminar el reporte. '+error.message);
@@ -631,8 +996,14 @@ async function renderAdmin(){
  });
 }
 
+/* ==========================================
+   DEPARTAMENTOS
+========================================== */
+
 function fillDepartments(){
- const deps=[...$('departamento').options].map(o=>o.value).filter(Boolean);
+ const deps=[...$('departamento').options]
+  .map(o=>o.value)
+  .filter(Boolean);
 
  deps.forEach(d=>{
   const op=document.createElement('option');
@@ -641,6 +1012,10 @@ function fillDepartments(){
   $('filterDept').appendChild(op);
  });
 }
+
+/* ==========================================
+   UBICACIÓN GPS
+========================================== */
 
 $('getLocation').onclick=()=>{
  if(!navigator.geolocation){
@@ -651,13 +1026,21 @@ $('getLocation').onclick=()=>{
  $('gpsText').textContent='Obteniendo ubicación del celular…';
 
  navigator.geolocation.getCurrentPosition(p=>{
-  gps={lat:p.coords.latitude,lng:p.coords.longitude};
+  gps={
+   lat:p.coords.latitude,
+   lng:p.coords.longitude
+  };
 
   $('useGps').checked=true;
+  selectedAddressLocation=null;
+  locationConfirmed=false;
+
+  $('locationPickerWrap').classList.add('hidden');
+
   actualizarRequisitoDireccion();
 
   $('gpsText').textContent=
-   `GPS listo: ${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)}. Se usará este punto para el reporte.`;
+   `GPS listo: ${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)}. Se utilizará esta ubicación.`;
 
  },e=>{
   $('gpsText').textContent='No se pudo obtener GPS. Revisá permisos y activá ubicación.';
@@ -670,39 +1053,68 @@ $('getLocation').onclick=()=>{
 
 $('clearLocation').onclick=()=>{
  gps=null;
+ selectedAddressLocation=null;
+ locationConfirmed=false;
+
  $('useGps').checked=false;
+ $('locationPickerWrap').classList.add('hidden');
+
  actualizarRequisitoDireccion();
- $('gpsText').textContent='Se utilizará la dirección escrita para localizar el reporte.';
+
+ $('gpsText').textContent='Buscá una dirección o seleccioná una ubicación en el mapa.';
 };
 
 function actualizarRequisitoDireccion(){
  const usarGPS=$('useGps').checked;
+
  $('calle').required=!usarGPS;
+
  $('calle').placeholder=usarGPS?
-  'Ubicación obtenida automáticamente por GPS':
+  'Podés dejar la dirección como referencia':
   'Ej.: San Martín 1200 o San Martín y Garibaldi';
 }
 
 $('useGps').addEventListener('change',()=>{
+ if($('useGps').checked){
+  selectedAddressLocation=null;
+  locationConfirmed=false;
+  $('locationPickerWrap').classList.add('hidden');
+ }
+
  actualizarRequisitoDireccion();
 
  if($('useGps').checked&&!gps){
-  $('gpsText').textContent='Tocá «Obtener ubicación» para capturar el punto exacto del daño.';
+  $('gpsText').textContent='Tocá «Obtener GPS» para capturar la ubicación.';
  }
 });
 
 actualizarRequisitoDireccion();
 
+/* ==========================================
+   BUSCADOR DE DIRECCIONES
+========================================== */
+
 async function geocodeAddress(street,department){
- const query=[street,department,'Mendoza','Argentina'].filter(Boolean).join(', ');
- const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ar&q='+encodeURIComponent(query);
+ const query=[
+  street,
+  department,
+  'Mendoza',
+  'Argentina'
+ ].filter(Boolean).join(', ');
+
+ const url=
+  'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=ar&q='+
+  encodeURIComponent(query);
 
  const response=await fetch(url,{
-  headers:{'Accept':'application/json','Accept-Language':'es'}
+  headers:{
+   'Accept':'application/json',
+   'Accept-Language':'es'
+  }
  });
 
  if(!response.ok){
-  throw new Error('El servicio de mapas no respondió. Probá nuevamente en unos segundos.');
+  throw new Error('El servicio de mapas no respondió. Probá nuevamente.');
  }
 
  const results=await response.json();
@@ -711,34 +1123,225 @@ async function geocodeAddress(street,department){
   throw new Error('No encontramos esa dirección. Revisá la calle, altura y departamento.');
  }
 
- const lat=Number(results[0].lat);
- const lng=Number(results[0].lon);
+ return results.map(item=>({
+  lat:Number(item.lat),
+  lng:Number(item.lon),
+  label:item.display_name||query
+ })).filter(p=>
+  Number.isFinite(p.lat)&&Number.isFinite(p.lng)
+ );
+}
 
- if(!Number.isFinite(lat)||!Number.isFinite(lng)){
-  throw new Error('La dirección no devolvió coordenadas válidas.');
+/* ==========================================
+   MAPA PARA AJUSTAR EL PUNTO
+========================================== */
+
+function ensurePickerMap(){
+ if(pickerMap)return;
+
+ pickerMap=L.map('locationPicker',{
+  zoomControl:true,
+  scrollWheelZoom:true,
+  doubleClickZoom:true,
+  touchZoom:true
+ }).setView([-32.8895,-68.8458],16);
+
+ setBaseLayer(
+  pickerMap,
+  $('pickerMapSelect').value||'voyager'
+ );
+
+ pickerMap.on('click',e=>{
+  setSelectedLocation(
+   e.latlng.lat,
+   e.latlng.lng,
+   'Punto seleccionado tocando el mapa'
+  );
+ });
+
+ $('pickerMapSelect').addEventListener('change',e=>{
+  setBaseLayer(pickerMap,e.target.value);
+ });
+}
+
+function setSelectedLocation(lat,lng,label){
+ selectedAddressLocation={
+  lat:Number(lat),
+  lng:Number(lng),
+  label:label||'Punto ajustado manualmente'
+ };
+
+ locationConfirmed=false;
+
+ if(!pickerMarker){
+  pickerMarker=L.marker(
+   [lat,lng],
+   {draggable:true}
+  ).addTo(pickerMap);
+
+  pickerMarker.on('dragend',()=>{
+   const p=pickerMarker.getLatLng();
+
+   setSelectedLocation(
+    p.lat,
+    p.lng,
+    'Punto ajustado manualmente'
+   );
+  });
+
+ }else{
+  pickerMarker.setLatLng([lat,lng]);
  }
 
- return {lat,lng,label:results[0].display_name||query};
+ $('selectedLocationText').textContent=
+  'Punto provisional: '+
+  Number(lat).toFixed(6)+', '+
+  Number(lng).toFixed(6)+
+  '. Mové el marcador si necesitás corregirlo y luego confirmá.';
 }
+
+$('findAddressBtn').addEventListener('click',async()=>{
+ const street=$('calle').value.trim();
+ const department=$('departamento').value;
+
+ if(!street||!department){
+  alert('Ingresá la calle y seleccioná el departamento antes de buscar.');
+  return;
+ }
+
+ $('findAddressBtn').disabled=true;
+ $('findAddressBtn').textContent='Buscando dirección…';
+
+ try{
+  const candidates=await geocodeAddress(street,department);
+
+  let chosen=candidates[0];
+
+  if(candidates.length>1){
+   const choice=prompt(
+    'Se encontraron varias ubicaciones. Elegí el número del resultado:\n\n'+
+    candidates.map((p,i)=>
+     (i+1)+'. '+p.label
+    ).join('\n'),
+    '1'
+   );
+
+   if(choice===null)return;
+
+   const index=Number(choice)-1;
+
+   if(!Number.isInteger(index)||index<0||index>=candidates.length){
+    alert('Selección no válida.');
+    return;
+   }
+
+   chosen=candidates[index];
+  }
+
+  $('useGps').checked=false;
+  gps=null;
+  actualizarRequisitoDireccion();
+
+  $('locationPickerWrap').classList.remove('hidden');
+
+  ensurePickerMap();
+
+  setBaseLayer(
+   pickerMap,
+   $('pickerMapSelect').value||'voyager'
+  );
+
+  pickerMap.invalidateSize();
+  pickerMap.setView([chosen.lat,chosen.lng],18);
+
+  setSelectedLocation(
+   chosen.lat,
+   chosen.lng,
+   chosen.label
+  );
+
+  $('gpsText').textContent=
+   'Dirección encontrada. Revisá el marcador, ajustalo y confirmá el punto.';
+
+ }catch(error){
+  $('gpsText').textContent=error.message;
+  alert(error.message);
+
+ }finally{
+  $('findAddressBtn').disabled=false;
+  $('findAddressBtn').textContent='🔎 Buscar dirección en el mapa';
+ }
+});
+
+$('confirmLocationBtn').addEventListener('click',()=>{
+ if(!selectedAddressLocation){
+  alert('Primero buscá una dirección o seleccioná un punto en el mapa.');
+  return;
+ }
+
+ const p=pickerMarker.getLatLng();
+
+ selectedAddressLocation.lat=p.lat;
+ selectedAddressLocation.lng=p.lng;
+ locationConfirmed=true;
+
+ $('selectedLocationText').textContent=
+  '✓ Ubicación confirmada: '+
+  p.lat.toFixed(6)+', '+p.lng.toFixed(6);
+
+ $('gpsText').textContent=
+  'Ubicación manual confirmada. Se guardará este punto, no el GPS del dispositivo.';
+});
+
+/* Si se modifica la dirección, hay que volver a buscarla */
+$('calle').addEventListener('input',()=>{
+ selectedAddressLocation=null;
+ locationConfirmed=false;
+});
+
+$('departamento').addEventListener('change',()=>{
+ selectedAddressLocation=null;
+ locationConfirmed=false;
+});
+
+/* ==========================================
+   CONVERSIÓN DE COORDENADAS A DIRECCIÓN
+========================================== */
 
 async function reverseGeocode(lat,lng){
  try{
-  const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+
-   encodeURIComponent(lat)+'&lon='+encodeURIComponent(lng)+
+  const url=
+   'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+
+   encodeURIComponent(lat)+
+   '&lon='+
+   encodeURIComponent(lng)+
    '&zoom=18&addressdetails=1';
 
   const response=await fetch(url,{
-   headers:{'Accept':'application/json','Accept-Language':'es'}
+   headers:{
+    'Accept':'application/json',
+    'Accept-Language':'es'
+   }
   });
 
   if(!response.ok)return '';
 
   const data=await response.json();
   const a=data.address||{};
-  const calle=a.road||a.pedestrian||a.residential||a.footway||'';
+
+  const calle=
+   a.road||
+   a.pedestrian||
+   a.residential||
+   a.footway||
+   '';
+
   const altura=a.house_number||'';
 
-  if(calle)return altura?calle+' '+altura:calle;
+  if(calle){
+   return altura?calle+' '+altura:calle;
+  }
+
   return '';
 
  }catch(error){
@@ -747,29 +1350,9 @@ async function reverseGeocode(lat,lng){
  }
 }
 
-async function repairCorreaSaaReport(){
- const reports=load();
-
- const target=reports.find(r=>
-  String(r.street||'').trim().toLocaleLowerCase('es-AR')==='correa saa 389'&&
-  String(r.department||'').trim().toLocaleLowerCase('es-AR')==='guaymallén'&&
-  r.locationSource!=='address'
- );
-
- if(!target)return;
-
- try{
-  const point=await geocodeAddress(target.street,target.department);
-  target.lat=point.lat;
-  target.lng=point.lng;
-  target.locationSource='address';
-  target.geocodedAddress=point.label;
-  save(reports);
-  renderMap(true);
- }catch(error){
-  console.warn('No se pudo corregir automáticamente Correa Saa 389:',error);
- }
-}
+/* ==========================================
+   ENVÍO DE REPORTES
+========================================== */
 
 $('reportForm').onsubmit=async e=>{
  e.preventDefault();
@@ -778,35 +1361,49 @@ $('reportForm').onsubmit=async e=>{
  let reportStreet=$('calle').value.trim();
 
  if($('useGps').checked){
+
   if(!gps){
-   alert('Primero tocá «Obtener ubicación GPS».');
+   alert('Primero tocá «Obtener GPS».');
    return;
   }
 
-  reportLocation={lat:gps.lat,lng:gps.lng,source:'gps',label:''};
+  reportLocation={
+   lat:gps.lat,
+   lng:gps.lng,
+   source:'gps',
+   label:''
+  };
+
   $('gpsText').textContent='Ubicación GPS capturada. Identificando la calle…';
 
   const street=await reverseGeocode(gps.lat,gps.lng);
-  if(street)reportStreet=street;
-  else if(!reportStreet)reportStreet='Ubicación GPS';
+
+  if(street){
+   reportStreet=street;
+  }else if(!reportStreet){
+   reportStreet='Ubicación GPS';
+  }
 
  }else{
+
   if(!reportStreet){
    alert('Ingresá calle y altura, o activá la opción GPS.');
    $('calle').focus();
    return;
   }
 
-  $('gpsText').textContent='Buscando las coordenadas de la dirección…';
-
-  try{
-   const p=await geocodeAddress(reportStreet,$('departamento').value);
-   reportLocation={lat:p.lat,lng:p.lng,source:'address',label:p.label};
-  }catch(err){
-   $('gpsText').textContent=err.message;
-   alert(err.message+'\nEl reporte no se guardó.');
+  if(!selectedAddressLocation||!locationConfirmed){
+   alert('Primero buscá la dirección, revisá el marcador y confirmá la ubicación en el mapa.');
+   $('findAddressBtn').focus();
    return;
   }
+
+  reportLocation={
+   lat:selectedAddressLocation.lat,
+   lng:selectedAddressLocation.lng,
+   source:'address',
+   label:selectedAddressLocation.label
+  };
  }
 
  const file=$('foto').files[0];
@@ -815,6 +1412,10 @@ $('reportForm').onsubmit=async e=>{
   alert('La foto supera 1,2 MB. Elegí una imagen más pequeña.');
   return;
  }
+
+ const submitButton=$('reportForm').querySelector('button[type="submit"]');
+ submitButton.disabled=true;
+ submitButton.textContent='Enviando reporte…';
 
  const r={
   id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),
@@ -833,7 +1434,9 @@ $('reportForm').onsubmit=async e=>{
  };
 
  try{
-  if(file)r.photo=await uploadCloudPhoto(file,r.id);
+  if(file){
+   r.photo=await uploadCloudPhoto(file,r.id);
+  }
 
   await insertCloudReport(r);
 
@@ -852,27 +1455,53 @@ $('reportForm').onsubmit=async e=>{
    const local=load();
    local.push(r);
    save(local);
+
   }catch(storageErr){
    alert('No se pudo guardar el reporte. Probá nuevamente sin foto.');
+   submitButton.disabled=false;
+   submitButton.textContent='Enviar reporte';
    return;
   }
 
-  alert('No se pudo enviar a la nube. El reporte quedó guardado solamente en este teléfono.\nDetalle: '+err.message);
+  alert(
+   'No se pudo enviar a la nube. El reporte quedó guardado solamente en este teléfono.\nDetalle: '+
+   err.message
+  );
  }
 
  $('reportForm').reset();
+
  gps=null;
+ selectedAddressLocation=null;
+ locationConfirmed=false;
+
+ $('locationPickerWrap').classList.add('hidden');
+
+ if(pickerMarker&&pickerMap){
+  pickerMap.removeLayer(pickerMarker);
+  pickerMarker=null;
+ }
+
  actualizarRequisitoDireccion();
 
- $('gpsText').textContent='Se utilizará la dirección escrita o el GPS, según la opción elegida.';
+ $('gpsText').textContent=
+  'Elegí GPS o buscá una dirección para ubicar el daño.';
+
+ submitButton.disabled=false;
+ submitButton.textContent='Enviar reporte';
 
  updateStats();
  renderMap();
  switchTab('listado');
 };
 
+/* ==========================================
+   FILTROS Y MAPA
+========================================== */
+
 $('filterDept').onchange=renderList;
 $('filterStatus').onchange=renderList;
+
 $('refreshMap').onclick=async()=>{
  await refreshCloudReports();
  renderMap(true);
@@ -882,7 +1511,9 @@ $('locateMap').onclick=()=>{
  navigator.geolocation?.getCurrentPosition(p=>{
   const point=[p.coords.latitude,p.coords.longitude];
 
-  if(userMarker)map.removeLayer(userMarker);
+  if(userMarker){
+   map.removeLayer(userMarker);
+  }
 
   userMarker=L.circleMarker(point,{
    radius:9,
@@ -899,6 +1530,10 @@ $('locateMap').onclick=()=>{
  });
 };
 
+/* ==========================================
+   INGRESO ADMINISTRADOR
+========================================== */
+
 $('loginBtn').onclick=async()=>{
  const email=$('adminEmail').value.trim();
  const password=$('adminPassword').value;
@@ -912,24 +1547,39 @@ $('loginBtn').onclick=async()=>{
  $('loginBtn').textContent='Verificando…';
 
  try{
-  const authResponse=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
-   method:'POST',
-   headers:{
-    apikey:SUPABASE_KEY,
-    'Content-Type':'application/json'
-   },
-   body:JSON.stringify({email,password})
-  });
+  const authResponse=await fetch(
+   SUPABASE_URL+'/auth/v1/token?grant_type=password',
+   {
+    method:'POST',
+    headers:{
+     apikey:SUPABASE_KEY,
+     'Content-Type':'application/json'
+    },
+    body:JSON.stringify({email,password})
+   }
+  );
 
   const authData=await authResponse.json();
 
-  if(!authResponse.ok||!authData.access_token||!authData.user||!authData.user.id){
-   throw new Error(authData.msg||authData.message||'Correo o contraseña incorrectos.');
+  if(
+   !authResponse.ok||
+   !authData.access_token||
+   !authData.user||
+   !authData.user.id
+  ){
+   throw new Error(
+    authData.msg||
+    authData.message||
+    'Correo o contraseña incorrectos.'
+   );
   }
 
   const token=authData.access_token;
+
   const checkResponse=await fetch(
-   SUPABASE_URL+'/rest/v1/admin_users?select=user_id&user_id=eq.'+encodeURIComponent(authData.user.id),
+   SUPABASE_URL+
+   '/rest/v1/admin_users?select=user_id&user_id=eq.'+
+   encodeURIComponent(authData.user.id),
    {
     headers:{
      apikey:SUPABASE_KEY,
@@ -940,25 +1590,33 @@ $('loginBtn').onclick=async()=>{
   );
 
   if(!checkResponse.ok){
-   throw new Error('No se pudo comprobar el permiso de administrador: '+await checkResponse.text());
+   throw new Error(
+    'No se pudo comprobar el permiso de administrador: '+
+    await checkResponse.text()
+   );
   }
 
   const authorizedUsers=await checkResponse.json();
+
   if(!Array.isArray(authorizedUsers)||authorizedUsers.length===0){
    throw new Error('La cuenta ingresada no está autorizada como administradora.');
   }
 
   adminAccessToken=token;
   admin=true;
+
   $('adminLogin').classList.add('hidden');
   $('adminPanel').classList.remove('hidden');
+
   $('adminEmail').value='';
   $('adminPassword').value='';
+
   await renderAdmin();
 
  }catch(error){
   admin=false;
   adminAccessToken=null;
+
   alert('No se pudo iniciar sesión. '+error.message);
 
  }finally{
@@ -967,39 +1625,72 @@ $('loginBtn').onclick=async()=>{
  }
 };
 
+/* ==========================================
+   CERRAR SESIÓN
+========================================== */
+
 $('logoutBtn').onclick=()=>{
  admin=false;
  adminAccessToken=null;
+
  $('adminLogin').classList.remove('hidden');
  $('adminPanel').classList.add('hidden');
+
  $('adminPassword').value='';
  $('adminList').innerHTML='';
 };
 
+/* ==========================================
+   EXPORTAR REPORTES
+========================================== */
+
 $('exportBtn').onclick=()=>{
  const rows=[
-  ['id','fecha','tipo','calle','departamento','gravedad','estado','latitud','longitud','descripcion'],
+  [
+   'id','fecha','tipo','calle','departamento',
+   'gravedad','estado','latitud','longitud','descripcion'
+  ],
   ...getReports().map(r=>[
-   r.id,r.created,r.type,r.street,r.department,r.severity,r.status,
-   r.lat??'',r.lng??'',r.description
+   r.id,
+   r.created,
+   r.type,
+   r.street,
+   r.department,
+   r.severity,
+   r.status,
+   r.lat??'',
+   r.lng??'',
+   r.description
   ])
  ];
 
  const csv=rows.map(row=>
-  row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')
+  row.map(v=>
+   '"'+String(v??'').replace(/"/g,'""')+'"'
+  ).join(';')
  ).join('\n');
 
  const a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}));
+
+ a.href=URL.createObjectURL(
+  new Blob(['\ufeff'+csv],{
+   type:'text/csv;charset=utf-8;'
+  })
+ );
+
  a.download='mendoza-sin-baches-reportes.csv';
  a.click();
+
  URL.revokeObjectURL(a.href);
 };
+
+/* ==========================================
+   INICIO
+========================================== */
 
 fillDepartments();
 initMap();
 updateStats();
-repairCorreaSaaReport();
 refreshCloudReports();
 
 </script>

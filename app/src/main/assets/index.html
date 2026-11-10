@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="es">
 <head>
@@ -167,6 +166,9 @@ body.map-open{overflow:hidden}
 .row>*{flex:1;min-width:0}
 .empty{text-align:center;padding:22px;color:var(--muted)}
 footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24px}
+.filter-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.filter-row>*{min-width:0}
+.filter-search{margin-top:8px}
 .location-box{
  background:#f3f7f4;
  border:1px solid #dce7df;
@@ -217,7 +219,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
   <select id="baseMapSelect">
    <option value="voyager">Calles detalladas</option>
    <option value="osm">Calles estándar</option>
-   <option value="satellite">Satélite</option>
+   <option value="satellite">Satélite + nombres de calles</option>
   </select>
 
   <div class="hint" style="margin:6px 0 10px">
@@ -327,7 +329,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
     <select id="pickerMapSelect">
      <option value="voyager">Calles detalladas</option>
      <option value="osm">Calles estándar</option>
-     <option value="satellite">Satélite</option>
+     <option value="satellite">Satélite + nombres de calles</option>
     </select>
 
     <button type="button" class="btn secondary" id="findAddressBtn">
@@ -355,19 +357,27 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
 <section id="tab-listado" class="hidden">
  <div class="panel">
   <h2>Reportes ciudadanos</h2>
-  <div class="row">
-   <select id="filterDept">
-    <option value="">Todos los departamentos</option>
-   </select>
-   <select id="filterStatus">
-    <option value="">Todos los estados</option>
-    <option>Pendiente</option>
-    <option>Informado al municipio</option>
-    <option>En reparación</option>
-    <option>Solucionado</option>
-   </select>
-  </div>
-  <div id="reportList"></div>
+  <div class="filter-row">
+    <select id="filterDept">
+     <option value="">Todos los departamentos</option>
+    </select>
+    <select id="filterStatus">
+     <option value="">Todos los estados</option>
+     <option>Pendiente</option>
+     <option>Informado al municipio</option>
+     <option>En reparación</option>
+     <option>Solucionado</option>
+    </select>
+    <select id="filterSeverity">
+     <option value="">Todas las gravedades</option>
+     <option>Alta</option>
+     <option>Media</option>
+     <option>Baja</option>
+    </select>
+   </div>
+   <input id="searchReports" class="filter-search" type="search" placeholder="Buscar por calle, tipo o descripción…">
+   <button type="button" class="btn secondary" id="clearFilters">Limpiar filtros</button>
+   <div id="reportList"></div>
  </div>
 </section>
 
@@ -395,7 +405,23 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
     <button class="btn secondary" id="exportBtn">Exportar CSV</button>
     <button class="btn danger" id="logoutBtn">Cerrar sesión</button>
    </div>
-   <div id="adminList"></div>
+    <div class="filter-row">
+     <select id="adminFilterStatus">
+      <option value="">Todos los estados</option>
+      <option>Pendiente</option>
+      <option>Informado al municipio</option>
+      <option>En reparación</option>
+      <option>Solucionado</option>
+     </select>
+     <select id="adminFilterSeverity">
+      <option value="">Todas las gravedades</option>
+      <option>Alta</option>
+      <option>Media</option>
+      <option>Baja</option>
+     </select>
+    </div>
+    <input id="adminSearch" class="filter-search" type="search" placeholder="Buscar por calle, tipo, departamento o descripción…">
+    <div id="adminList"></div>
   </div>
  </div>
 </section>
@@ -403,7 +429,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
 </main>
 
 <footer>
- Prototipo 0.3 · Mendoza, Argentina · Reportes compartidos mediante Supabase.
+ Prototipo 0.4 · Mendoza, Argentina · Reportes compartidos mediante Supabase.
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -436,17 +462,17 @@ const $=id=>document.getElementById(id);
 
 const MAP_TILES={
  voyager:{
-  url:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
   options:{
-   maxZoom:20,
-   attribution:'© OpenStreetMap contributors · © CARTO'
+   maxZoom:19,
+   attribution:'Tiles © Esri — Source: Esri, HERE, Garmin, OpenStreetMap contributors'
   }
  },
  osm:{
-  url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
   options:{
    maxZoom:19,
-   attribution:'© OpenStreetMap contributors'
+   attribution:'Tiles © Esri — Source: Esri, HERE, Garmin, OpenStreetMap contributors'
   }
  },
  satellite:{
@@ -465,12 +491,29 @@ function setBaseLayer(targetMap,type){
 
  if(targetMap._msbBaseLayer){
   targetMap.removeLayer(targetMap._msbBaseLayer);
+  targetMap._msbBaseLayer=null;
+ }
+ if(targetMap._msbLabelsLayer){
+  targetMap.removeLayer(targetMap._msbLabelsLayer);
+  targetMap._msbLabelsLayer=null;
  }
 
  targetMap._msbBaseLayer=L.tileLayer(
   config.url,
   config.options
  ).addTo(targetMap);
+
+ if(type==='satellite'){
+  targetMap._msbLabelsLayer=L.tileLayer(
+   'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+   {
+    maxZoom:19,
+    pane:'overlayPane',
+    opacity:1,
+    attribution:'Labels © Esri, HERE, Garmin, OpenStreetMap contributors'
+   }
+  ).addTo(targetMap);
+ }
 }
 
 /* ==========================================
@@ -558,6 +601,48 @@ async function refreshCloudReports(){
   console.error('Error leyendo Supabase:',error);
   cloudReady=false;
   return false;
+ }
+}
+
+async function compressPhoto(file){
+ if(!file||!file.type||!file.type.startsWith('image/'))return file;
+ if(file.size<=1100000)return file;
+
+ const objectUrl=URL.createObjectURL(file);
+ try{
+  const image=new Image();
+  image.src=objectUrl;
+  await new Promise((resolve,reject)=>{
+   image.onload=resolve;
+   image.onerror=()=>reject(new Error('No se pudo abrir la fotografía seleccionada.'));
+  });
+
+  const maxSide=1800;
+  const scale=Math.min(1,maxSide/Math.max(image.width,image.height));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(image.width*scale));
+  canvas.height=Math.max(1,Math.round(image.height*scale));
+  const context=canvas.getContext('2d');
+  if(!context)throw new Error('No se pudo preparar la fotografía.');
+  context.drawImage(image,0,0,canvas.width,canvas.height);
+
+  let quality=0.84;
+  let blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+  while(blob&&blob.size>1100000&&quality>0.42){
+   quality=Math.max(0.42,quality-0.08);
+   blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+  }
+  if(!blob||blob.size>1200000){
+   throw new Error('La fotografía sigue superando 1,2 MB después de comprimirla. Elegí otra imagen.');
+  }
+
+  const baseName=(file.name||'foto').replace(/\.[^.]+$/,'');
+  return new File([blob],baseName+'.jpg',{
+   type:'image/jpeg',
+   lastModified:Date.now()
+  });
+ }finally{
+  URL.revokeObjectURL(objectUrl);
  }
 }
 
@@ -854,14 +939,20 @@ function card(r,manage=false){
 }
 
 function renderList(){
- const a=getReports().filter(r=>
-  (!$('filterDept').value||r.department===$('filterDept').value)&&
-  (!$('filterStatus').value||r.status===$('filterStatus').value)
- ).sort((x,y)=>String(y.created||'').localeCompare(String(x.created||'')));
+ const search=($('searchReports')?.value||'').trim().toLocaleLowerCase('es');
+ const a=getReports().filter(r=>{
+  const searchable=[
+   r.type,r.street,r.department,r.description,r.status,r.severity
+  ].join(' ').toLocaleLowerCase('es');
+  return (!$('filterDept').value||r.department===$('filterDept').value)&&
+   (!$('filterStatus').value||r.status===$('filterStatus').value)&&
+   (!$('filterSeverity').value||r.severity===$('filterSeverity').value)&&
+   (!search||searchable.includes(search));
+ }).sort((x,y)=>String(y.created||'').localeCompare(String(x.created||'')));
 
  $('reportList').innerHTML=a.length?
   a.map(r=>card(r)).join(''):
-  '<div class="empty">Todavía no hay reportes con estos filtros.</div>';
+  '<div class="empty">No hay reportes que coincidan con los filtros.</div>';
 }
 
 /* ==========================================
@@ -881,10 +972,9 @@ async function adminFetch(path,options={}){
  );
 }
 
-async function renderAdmin(){
+async function renderAdmin(refresh=true){
  if(!admin)return;
-
- const loaded=await refreshCloudReports();
+ const loaded=refresh?await refreshCloudReports():true;
 
  if(!loaded){
   $('adminList').innerHTML=
@@ -892,13 +982,21 @@ async function renderAdmin(){
   return;
  }
 
- const reports=getReports().sort((a,b)=>
+ const search=($('adminSearch')?.value||'').trim().toLocaleLowerCase('es');
+ const reports=getReports().filter(r=>{
+  const searchable=[
+   r.type,r.street,r.department,r.description,r.status,r.severity
+  ].join(' ').toLocaleLowerCase('es');
+  return (!$('adminFilterStatus')?.value||r.status===$('adminFilterStatus').value)&&
+   (!$('adminFilterSeverity')?.value||r.severity===$('adminFilterSeverity').value)&&
+   (!search||searchable.includes(search));
+ }).sort((a,b)=>
   String(b.created||'').localeCompare(String(a.created||''))
  );
 
  $('adminList').innerHTML=reports.length?
   reports.map(r=>card(r,true)).join(''):
-  '<div class="empty">Todavía no hay reportes registrados.</div>';
+  '<div class="empty">No hay reportes que coincidan con los filtros.</div>';
 
  document.querySelectorAll('[data-status]').forEach(select=>{
   select.addEventListener('change',async()=>{
@@ -1406,12 +1504,7 @@ $('reportForm').onsubmit=async e=>{
   };
  }
 
- const file=$('foto').files[0];
-
- if(file&&file.size>1200000){
-  alert('La foto supera 1,2 MB. Elegí una imagen más pequeña.');
-  return;
- }
+ let file=$('foto').files[0];
 
  const submitButton=$('reportForm').querySelector('button[type="submit"]');
  submitButton.disabled=true;
@@ -1435,6 +1528,7 @@ $('reportForm').onsubmit=async e=>{
 
  try{
   if(file){
+   file=await compressPhoto(file);
    r.photo=await uploadCloudPhoto(file,r.id);
   }
 
@@ -1501,6 +1595,19 @@ $('reportForm').onsubmit=async e=>{
 
 $('filterDept').onchange=renderList;
 $('filterStatus').onchange=renderList;
+$('filterSeverity').onchange=renderList;
+$('searchReports').oninput=renderList;
+$('clearFilters').onclick=()=>{
+ $('filterDept').value='';
+ $('filterStatus').value='';
+ $('filterSeverity').value='';
+ $('searchReports').value='';
+ renderList();
+};
+
+$('adminFilterStatus').onchange=()=>renderAdmin(false);
+$('adminFilterSeverity').onchange=()=>renderAdmin(false);
+$('adminSearch').oninput=()=>renderAdmin(false);
 
 $('refreshMap').onclick=async()=>{
  await refreshCloudReports();

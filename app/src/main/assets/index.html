@@ -357,6 +357,15 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
 <section id="tab-listado" class="hidden">
  <div class="panel">
   <h2>Reportes ciudadanos</h2>
+  <div class="location-box">
+   <h2>Consultar seguimiento de un reclamo</h2>
+   <div class="hint">Ingresá el código de 10 caracteres que recibiste al enviar el reporte.</div>
+   <div class="row">
+    <input id="trackingLookup" type="text" maxlength="10" placeholder="Código de seguimiento">
+    <button type="button" class="btn" id="trackingLookupBtn">Consultar</button>
+   </div>
+   <div id="trackingResult" aria-live="polite"></div>
+  </div>
   <div class="filter-row">
     <select id="filterDept">
      <option value="">Todos los departamentos</option>
@@ -401,8 +410,25 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
   </div>
 
   <div id="adminPanel" class="hidden">
+   <div class="panel" style="border:1px solid #93c5fd;background:#eff6ff;margin:12px 0">
+    <h3 style="margin-top:0">Prueba técnica de derivación</h3>
+    <p class="hint">Comprueba la configuración de Capital y el envío mediante Resend. No crea reportes, no modifica estadísticas y <strong>no envía correos al municipio</strong>: el resultado se envía al correo de la cuenta administradora.</p>
+    <button class="btn" id="testDerivationBtn" type="button">Probar derivación (simulación segura)</button>
+    <div id="testDerivationResult" class="hint" role="status" aria-live="polite" style="margin-top:10px"></div>
+   </div>
+   <div class="panel" style="border:1px solid #b7d9c5;background:#f4faf6;margin:12px 0">
+    <h3 style="margin-top:0">Usuarios municipales</h3>
+    <p class="hint">Invitá a cada agente municipal con su propio correo. Supabase enviará una invitación para que configure su contraseña. Podés crear varios usuarios para un mismo departamento.</p>
+    <label for="municipalDepartment">Departamento</label>
+    <select id="municipalDepartment"><option value="">Cargando departamentos…</option></select>
+    <label for="municipalUserEmail">Correo del usuario municipal</label>
+    <input id="municipalUserEmail" type="email" autocomplete="off" placeholder="usuario@municipio.gob.ar" maxlength="254">
+    <button class="btn" id="inviteMunicipalBtn" type="button">Enviar invitación municipal</button>
+    <div id="municipalInviteResult" class="hint" role="status" aria-live="polite" style="margin-top:10px"></div>
+   </div>
    <div class="row">
     <button class="btn secondary" id="exportBtn">Exportar CSV</button>
+     <button class="btn secondary" id="refreshAdminBtn" type="button">Actualizar reportes</button>
     <button class="btn danger" id="logoutBtn">Cerrar sesión</button>
    </div>
     <div class="filter-row">
@@ -421,6 +447,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
      </select>
     </div>
     <input id="adminSearch" class="filter-search" type="search" placeholder="Buscar por calle, tipo, departamento o descripción…">
+    <div id="adminStats" class="location-box"></div>
     <div id="adminList"></div>
   </div>
  </div>
@@ -429,7 +456,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:10px 20px 24p
 </main>
 
 <footer>
- Prototipo 0.4 · Mendoza, Argentina · Reportes compartidos mediante Supabase.
+ Mendoza Sin Baches · v0.8.2 · Mendoza, Argentina · Reportes compartidos mediante Supabase.
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -728,6 +755,22 @@ function pillSeverity(s){
  return s==='Alta'?'grave':s==='Media'?'media':'leve';
 }
 
+function trackingCode(id){
+ return String(id||'').replace(/-/g,'').slice(-10).toUpperCase();
+}
+
+function copyTrackingCode(id){
+ const code=trackingCode(id);
+ if(navigator.clipboard&&window.isSecureContext){
+  navigator.clipboard.writeText(code).then(
+   ()=>alert('Código '+code+' copiado. Guardalo para consultar el estado del reclamo.'),
+   ()=>prompt('Copiá tu código de seguimiento:',code)
+  );
+ }else{
+  prompt('Copiá tu código de seguimiento:',code);
+ }
+}
+
 /* ==========================================
    NAVEGACIÓN
 ========================================== */
@@ -914,6 +957,8 @@ function card(r,manage=false){
  <div>
  <b>${escapeHtml(r.type)} · ${escapeHtml(r.street)}</b>
  <div class="hint">${escapeHtml(r.department)} · ${fmt(r.created)}</div>
+  <div class="hint">Código de seguimiento: <b>${escapeHtml(trackingCode(r.id))}</b></div>
+  <button type="button" class="btn secondary" onclick="copyTrackingCode('${r.id}')">Copiar código</button>
  </div>
  <span class="pill ${pillSeverity(r.severity)}">${escapeHtml(r.severity)}</span>
  </div>
@@ -942,7 +987,7 @@ function renderList(){
  const search=($('searchReports')?.value||'').trim().toLocaleLowerCase('es');
  const a=getReports().filter(r=>{
   const searchable=[
-   r.type,r.street,r.department,r.description,r.status,r.severity
+   r.id,trackingCode(r.id),r.type,r.street,r.department,r.description,r.status,r.severity
   ].join(' ').toLocaleLowerCase('es');
   return (!$('filterDept').value||r.department===$('filterDept').value)&&
    (!$('filterStatus').value||r.status===$('filterStatus').value)&&
@@ -958,6 +1003,65 @@ function renderList(){
 /* ==========================================
    ADMINISTRACIÓN
 ========================================== */
+
+async function fetchReportHistory(reportId){
+ const response=await fetch(
+  SUPABASE_URL+'/rest/v1/reporte_historial?select=id,reporte_id,estado_anterior,estado_nuevo,fecha_cambio,observacion&reporte_id=eq.'+
+  encodeURIComponent(reportId)+'&order=fecha_cambio.asc',
+  {headers:{apikey:SUPABASE_KEY,Accept:'application/json'}}
+ );
+ if(!response.ok)throw new Error('No se pudo consultar el historial: '+await response.text());
+ return await response.json();
+}
+
+function renderHistoryTimeline(history){
+ if(!history.length)return '<div class="empty">Todavía no hay movimientos registrados.</div>';
+ return '<div class="report">'+history.map(item=>{
+  const before=item.estado_anterior?'<span class="hint">'+escapeHtml(item.estado_anterior)+' → </span>':'';
+  return '<div style="border-left:3px solid #176b45;padding:4px 0 12px 12px;margin:8px 0">'+
+   '<b>'+before+escapeHtml(item.estado_nuevo)+'</b>'+
+   '<div class="hint">'+fmt(item.fecha_cambio)+'</div>'+
+   (item.observacion?'<div>'+escapeHtml(item.observacion)+'</div>':'')+
+   '</div>';
+ }).join('')+'</div>';
+}
+
+async function lookupTracking(){
+ const code=$('trackingLookup').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+ const output=$('trackingResult');
+ if(code.length!==10){
+  output.innerHTML='<div class="hint">Ingresá los 10 caracteres del código.</div>';
+  return;
+ }
+ $('trackingLookupBtn').disabled=true;
+ $('trackingLookupBtn').textContent='Buscando…';
+ output.innerHTML='<div class="hint">Consultando el reclamo…</div>';
+ try{
+  const response=await fetch(
+   SUPABASE_URL+'/rest/v1/reportes?select=id,tipo,calle,departamento,gravedad,estado,fecha_creacion&order=fecha_creacion.desc',
+   {headers:{apikey:SUPABASE_KEY,Accept:'application/json'}}
+  );
+  if(!response.ok)throw new Error('No se pudo consultar el reclamo.');
+  const reports=await response.json();
+  const report=reports.find(r=>trackingCode(r.id)===code);
+  if(!report){
+   output.innerHTML='<div class="empty">No encontramos un reclamo con ese código. Revisá que esté bien escrito.</div>';
+   return;
+  }
+  const history=await fetchReportHistory(report.id);
+  output.innerHTML=
+   '<div class="report"><b>'+escapeHtml(report.tipo)+' · '+escapeHtml(report.calle)+'</b>'+
+   '<div class="hint">'+escapeHtml(report.departamento)+' · '+escapeHtml(report.gravedad)+'</div>'+
+   '<p>Estado actual: <span class="pill status">'+escapeHtml(report.estado)+'</span></p>'+
+   '<div class="hint">Código: '+escapeHtml(code)+'</div>'+
+   '<h3>Historial de seguimiento</h3>'+renderHistoryTimeline(history)+'</div>';
+ }catch(error){
+  output.innerHTML='<div class="empty">'+escapeHtml(error.message)+'</div>';
+ }finally{
+  $('trackingLookupBtn').disabled=false;
+  $('trackingLookupBtn').textContent='Consultar';
+ }
+}
 
 async function adminFetch(path,options={}){
  const headers=Object.assign({
@@ -985,7 +1089,7 @@ async function renderAdmin(refresh=true){
  const search=($('adminSearch')?.value||'').trim().toLocaleLowerCase('es');
  const reports=getReports().filter(r=>{
   const searchable=[
-   r.type,r.street,r.department,r.description,r.status,r.severity
+   r.id,trackingCode(r.id),r.type,r.street,r.department,r.description,r.status,r.severity
   ].join(' ').toLocaleLowerCase('es');
   return (!$('adminFilterStatus')?.value||r.status===$('adminFilterStatus').value)&&
    (!$('adminFilterSeverity')?.value||r.severity===$('adminFilterSeverity').value)&&
@@ -997,6 +1101,21 @@ async function renderAdmin(refresh=true){
  $('adminList').innerHTML=reports.length?
   reports.map(r=>card(r,true)).join(''):
   '<div class="empty">No hay reportes que coincidan con los filtros.</div>';
+
+ const byDepartment={};
+ reports.forEach(r=>{
+  const dep=r.department||'Sin departamento';
+  byDepartment[dep]=(byDepartment[dep]||0)+1;
+ });
+ const departmentRows=Object.entries(byDepartment).sort((a,b)=>b[1]-a[1]);
+ $('adminStats').innerHTML=
+  '<b>Resumen de reportes por departamento</b>'+
+  (departmentRows.length?
+   '<div class="hint" style="margin-top:8px">'+departmentRows.map(([dep,total])=>
+    '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e3e9e5">'+
+    '<span>'+escapeHtml(dep)+'</span><b>'+total+'</b></div>'
+   ).join('')+'</div>':
+   '<div class="hint">Todavía no hay reportes.</div>');
 
  document.querySelectorAll('[data-status]').forEach(select=>{
   select.addEventListener('change',async()=>{
@@ -1452,6 +1571,31 @@ async function reverseGeocode(lat,lng){
    ENVÍO DE REPORTES
 ========================================== */
 
+function distanceMeters(lat1,lng1,lat2,lng2){
+ const rad=value=>value*Math.PI/180;
+ const dLat=rad(lat2-lat1);
+ const dLng=rad(lng2-lng1);
+ const a=Math.sin(dLat/2)**2+
+  Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLng/2)**2;
+ return 6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function findPossibleDuplicates(location,street,department){
+ return getReports().map(report=>({
+  report,
+  distance:(
+   Number.isFinite(Number(report.lat))&&Number.isFinite(Number(report.lng))
+  )?distanceMeters(location.lat,location.lng,Number(report.lat),Number(report.lng))
+   :Infinity
+ })).filter(item=>{
+  const sameDepartment=String(item.report.department||'').toLocaleLowerCase('es')===
+   String(department||'').toLocaleLowerCase('es');
+  const sameStreet=String(item.report.street||'').trim().toLocaleLowerCase('es')===
+   String(street||'').trim().toLocaleLowerCase('es');
+  return sameDepartment&&(item.distance<=35||sameStreet);
+ }).sort((a,b)=>a.distance-b.distance).slice(0,3);
+}
+
 $('reportForm').onsubmit=async e=>{
  e.preventDefault();
 
@@ -1504,6 +1648,27 @@ $('reportForm').onsubmit=async e=>{
   };
  }
 
+ const possibleDuplicates=findPossibleDuplicates(
+  reportLocation,
+  reportStreet,
+  $('departamento').value
+ );
+
+ if(possibleDuplicates.length){
+  const details=possibleDuplicates.map(item=>
+   '• '+item.report.street+' — '+item.report.status+
+   (Number.isFinite(item.distance)?' ('+Math.round(item.distance)+' m)':'')
+  ).join('\n');
+
+  const proceed=confirm(
+   'ATENCIÓN: encontramos reportes que podrían corresponder al mismo daño:\n\n'+
+   details+
+   '\n\n¿Querés enviar igualmente este nuevo reporte?'
+  );
+
+  if(!proceed)return;
+ }
+
  let file=$('foto').files[0];
 
  const submitButton=$('reportForm').querySelector('button[type="submit"]');
@@ -1540,7 +1705,13 @@ $('reportForm').onsubmit=async e=>{
 
   await refreshCloudReports();
 
-  alert('Reporte enviado correctamente y guardado en la nube. Ya puede verse desde otros teléfonos.');
+  const code=trackingCode(r.id);
+  alert(
+   'Reporte enviado correctamente y guardado en la nube.\n\n'+
+   'Tu código de seguimiento es: '+code+
+   '\n\nGuardalo para encontrar el reclamo y consultar su estado.'
+  );
+  copyTrackingCode(r.id);
 
  }catch(err){
   console.error(err);
@@ -1608,6 +1779,20 @@ $('clearFilters').onclick=()=>{
 $('adminFilterStatus').onchange=()=>renderAdmin(false);
 $('adminFilterSeverity').onchange=()=>renderAdmin(false);
 $('adminSearch').oninput=()=>renderAdmin(false);
+$('trackingLookupBtn').onclick=lookupTracking;
+$('trackingLookup').addEventListener('keydown',e=>{
+ if(e.key==='Enter'){e.preventDefault();lookupTracking();}
+});
+$('refreshAdminBtn').onclick=async()=>{
+ $('refreshAdminBtn').disabled=true;
+ $('refreshAdminBtn').textContent='Actualizando…';
+ try{
+  await renderAdmin(true);
+ }finally{
+  $('refreshAdminBtn').disabled=false;
+  $('refreshAdminBtn').textContent='Actualizar reportes';
+ }
+};
 
 $('refreshMap').onclick=async()=>{
  await refreshCloudReports();
@@ -1718,6 +1903,7 @@ $('loginBtn').onclick=async()=>{
   $('adminEmail').value='';
   $('adminPassword').value='';
 
+  await loadMunicipalDepartments();
   await renderAdmin();
 
  }catch(error){
@@ -1729,6 +1915,102 @@ $('loginBtn').onclick=async()=>{
  }finally{
   $('loginBtn').disabled=false;
   $('loginBtn').textContent='Ingresar';
+ }
+};
+
+/* ==========================================
+   PRUEBA SEGURA DE DERIVACIÓN (SIN RECLAMO REAL)
+========================================== */
+$('testDerivationBtn').onclick=async()=>{
+ const button=$('testDerivationBtn');
+ const result=$('testDerivationResult');
+ if(!adminAccessToken){
+  result.textContent='La sesión administrativa no está activa. Volvé a ingresar.';
+  return;
+ }
+ if(!confirm('Se comprobará la configuración de Capital y se enviará un correo de prueba SOLAMENTE a tu cuenta administradora. No se notificará a la Municipalidad ni se creará un reporte. ¿Continuar?')) return;
+ button.disabled=true;
+ button.textContent='Comprobando…';
+ result.textContent='Verificando configuración y envío de prueba…';
+ try{
+  const response=await fetch(SUPABASE_URL+'/functions/v1/probar-derivacion',{
+   method:'POST',
+   headers:{
+    apikey:SUPABASE_KEY,
+    Authorization:'Bearer '+adminAccessToken,
+    'Content-Type':'application/json'
+   },
+   body:JSON.stringify({departamento:'Capital'})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok){
+   throw new Error(data.error||data.message||('Error HTTP '+response.status));
+  }
+  result.textContent='Prueba correcta. Capital tiene destinatario configurado y Resend aceptó el correo de simulación. Destinatario de prueba: '+(data.test_recipient||'cuenta administradora')+'. No se notificó al municipio.';
+ }catch(error){
+  result.textContent='No se pudo completar la prueba: '+error.message;
+ }finally{
+  button.disabled=false;
+  button.textContent='Probar derivación (simulación segura)';
+ }
+};
+
+/* ==========================================
+   INVITAR USUARIOS MUNICIPALES
+========================================== */
+async function loadMunicipalDepartments(){
+ const select=$('municipalDepartment');
+ const output=$('municipalInviteResult');
+ if(!select||!adminAccessToken)return;
+ select.innerHTML='<option value="">Cargando departamentos…</option>';
+ try{
+  const response=await adminFetch('/rest/v1/municipios?select=id,departamento,nombre_oficial&activo=eq.true&order=departamento.asc');
+  if(!response.ok)throw new Error(await response.text());
+  const municipalities=await response.json();
+  if(!Array.isArray(municipalities)||municipalities.length===0)throw new Error('No hay departamentos activos en la tabla municipios.');
+  select.innerHTML='<option value="">Seleccionar departamento</option>'+municipalities.map(m=>
+   '<option value="'+escapeHtml(String(m.id))+'">'+escapeHtml(m.departamento)+'</option>'
+  ).join('');
+ }catch(error){
+  select.innerHTML='<option value="">No se pudieron cargar los departamentos</option>';
+  if(output)output.textContent='No se pudo cargar el listado municipal: '+error.message;
+ }
+}
+
+$('inviteMunicipalBtn').onclick=async()=>{
+ const button=$('inviteMunicipalBtn');
+ const select=$('municipalDepartment');
+ const emailInput=$('municipalUserEmail');
+ const output=$('municipalInviteResult');
+ const municipioId=select.value;
+ const email=emailInput.value.trim().toLowerCase();
+ if(!adminAccessToken){output.textContent='La sesión administrativa no está activa. Volvé a ingresar.';return;}
+ if(!municipioId){output.textContent='Seleccioná un departamento.';select.focus();return;}
+ if(!email||!/^\S+@\S+\.\S+$/.test(email)){output.textContent='Ingresá un correo electrónico válido.';emailInput.focus();return;}
+ const department=select.options[select.selectedIndex]?.textContent||'el departamento seleccionado';
+ if(!confirm('Se enviará una invitación de acceso municipal a '+email+' para '+department+'. La persona recibirá un correo de Supabase para configurar su contraseña. ¿Continuar?'))return;
+ button.disabled=true;
+ button.textContent='Enviando invitación…';
+ output.textContent='Creando el usuario y asignándolo al departamento…';
+ try{
+  const response=await fetch(SUPABASE_URL+'/functions/v1/invitar-usuario-municipal',{
+   method:'POST',
+   headers:{
+    apikey:SUPABASE_KEY,
+    Authorization:'Bearer '+adminAccessToken,
+    'Content-Type':'application/json'
+   },
+   body:JSON.stringify({email,municipio_id:Number(municipioId)})
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.ok===false)throw new Error(data.error||data.message||('Error HTTP '+response.status));
+  output.textContent='Invitación procesada para '+email+' ('+department+'). El usuario debe abrir el correo de Supabase y configurar su contraseña. Si no recibe el mensaje, revisar Auth > Users y el estado de SMTP/correo.';
+  emailInput.value='';
+ }catch(error){
+  output.textContent='No se pudo enviar la invitación: '+error.message;
+ }finally{
+  button.disabled=false;
+  button.textContent='Enviar invitación municipal';
  }
 };
 
@@ -1745,6 +2027,9 @@ $('logoutBtn').onclick=()=>{
 
  $('adminPassword').value='';
  $('adminList').innerHTML='';
+ if($('municipalUserEmail'))$('municipalUserEmail').value='';
+ if($('municipalInviteResult'))$('municipalInviteResult').textContent='';
+ if($('municipalDepartment'))$('municipalDepartment').innerHTML='<option value="">Seleccionar departamento</option>';
 };
 
 /* ==========================================

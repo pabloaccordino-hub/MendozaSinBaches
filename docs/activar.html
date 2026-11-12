@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b25">
+  <title>Activar cuenta | Mendoza Sin Baches</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #102b25;
+      color: #17231f;
+      font-family: Arial, sans-serif;
+    }
+    .panel {
+      width: 100%;
+      max-width: 430px;
+      padding: 30px 24px;
+      border-radius: 18px;
+      background: white;
+      box-shadow: 0 15px 45px #0004;
+    }
+    h1 { margin-top: 0; font-size: 25px; }
+    p { line-height: 1.5; color: #53615b; }
+    label {
+      display: block;
+      margin: 17px 0 7px;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #cbd5d0;
+      border-radius: 9px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      border: 0;
+      border-radius: 9px;
+      background: #16734c;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: wait; }
+    #mensaje {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #eef3f0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .oculto { display: none; }
+    .marca { font-size: 13px; color: #718078; }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <p class="marca">MENDOZA SIN BACHES</p>
+    <h1>Activación de cuenta municipal</h1>
+    <p>
+      Estás a un paso de activar tu cuenta.
+      Creá una contraseña para ingresar a Mendoza Sin Baches.
+    </p>
+
+    <div id="formulario" class="oculto">
+      <form id="formActivacion">
+        <label for="password">Nueva contraseña</label>
+        <input
+          id="password"
+          type="password"
+          minlength="8"
+          autocomplete="new-password"
+          required
+          placeholder="Mínimo 8 caracteres"
+        >
+
+        <label for="confirmar">Confirmar contraseña</label>
+        <input
+          id="confirmar"
+          type="password"
+          minlength="8"
+          autocomplete="new-password"
+          required
+          placeholder="Repetí la contraseña"
+        >
+
+        <button id="btnActivar" type="submit">
+          Activar mi cuenta
+        </button>
+      </form>
+    </div>
+
+    <div id="mensaje" role="status" aria-live="polite">
+      Verificando el enlace de invitación...
+    </div>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL =
+      "https://uqluaeyncxyuawsvosnn.supabase.co";
+
+    const SUPABASE_KEY =
+      "sb_publishable__gBqxSO2cHoPHmsBU8Qtow_iXaMpgau";
+
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY,
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: "pkce"
+        }
+      }
+    );
+
+    const formulario = document.getElementById("formulario");
+    const mensaje = document.getElementById("mensaje");
+    const boton = document.getElementById("btnActivar");
+
+    function mostrarMensaje(texto) {
+      mensaje.textContent = texto;
+    }
+
+    async function iniciar() {
+      try {
+        // Permite procesar el código de invitación recibido
+        // en la URL y recuperar la sesión autenticada.
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (!data.session) {
+          throw new Error(
+            "No se encontró una sesión válida. " +
+            "El enlace puede haber vencido o ya haber sido utilizado. " +
+            "Solicitá una nueva invitación al administrador."
+          );
+        }
+
+        formulario.classList.remove("oculto");
+        mostrarMensaje(
+          "Enlace verificado. Ahora podés crear tu contraseña."
+        );
+
+      } catch (error) {
+        mostrarMensaje(
+          "No se pudo activar la cuenta.\n\n" +
+          (error.message || "Error de verificación.")
+        );
+      }
+    }
+
+    document.getElementById("formActivacion")
+      .addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const password =
+          document.getElementById("password").value;
+
+        const confirmar =
+          document.getElementById("confirmar").value;
+
+        if (password.length < 8) {
+          mostrarMensaje(
+            "La contraseña debe tener al menos 8 caracteres."
+          );
+          return;
+        }
+
+        if (password !== confirmar) {
+          mostrarMensaje("Las contraseñas no coinciden.");
+          return;
+        }
+
+        boton.disabled = true;
+        boton.textContent = "Activando cuenta...";
+
+        try {
+          const { error } = await supabase.auth.updateUser({
+            password: password
+          });
+
+          if (error) throw error;
+
+          formulario.classList.add("oculto");
+
+          mostrarMensaje(
+            "¡Cuenta activada correctamente!\n\n" +
+            "Ya podés ingresar desde la aplicación " +
+            "Mendoza Sin Baches con tu correo electrónico " +
+            "y la nueva contraseña."
+          );
+
+        } catch (error) {
+          mostrarMensaje(
+            "No se pudo establecer la contraseña.\n\n" +
+            (error.message || "Intentá nuevamente.")
+          );
+
+          boton.disabled = false;
+          boton.textContent = "Activar mi cuenta";
+        }
+      });
+
+    iniciar();
+  </script>
+</body>
+</html>
